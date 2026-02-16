@@ -805,3 +805,275 @@ test.describe('FIFO Cost Basis', () => {
     expect(costText).toContain('cost');
   });
 });
+
+// ─── Sales Tax ────────────────────────────────────────────────────────
+
+const TAX_TEST_DATA = {
+  settings: {
+    shopName: 'Tax Test Shop',
+    sellPremCoins: 7, sellPremBars: 5, sellPremScrap: 3,
+    buyDiscCoins: 3, buyDiscBars: 5, buyDiscScrap: 8,
+    whDiscCoins: 1, whDiscBars: 2, whDiscScrap: 3,
+    coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0, pre33: 0 },
+    junkMultiplier: 0.715, junkMultOverride: null,
+    sellPremJunk: 7, buyDiscJunk: 3, whDiscJunk: 1,
+    threshGold: 10, threshSilver: 500,
+    reorderPoints: {},
+    premiumModes: {},
+    taxEnabled: true,
+    taxState: 'HI',
+    taxRateOverride: null
+  },
+  transactions: [],
+  customers: [
+    { id: 'cust-tax-1', name: 'Tax Customer', email: 'tax@example.com', phone: '' },
+  ],
+  contacts: [],
+};
+
+async function seedTaxData(page, overrides = {}) {
+  const data = JSON.parse(JSON.stringify(TAX_TEST_DATA));
+  Object.assign(data.settings, overrides.settings || {});
+  if (overrides.transactions) data.transactions = overrides.transactions;
+  await page.evaluate((d) => {
+    localStorage.setItem('st_settings', JSON.stringify(d.settings));
+    localStorage.setItem('st_transactions', JSON.stringify(d.transactions));
+    localStorage.setItem('st_customers', JSON.stringify(d.customers));
+    localStorage.setItem('st_contacts', JSON.stringify(d.contacts));
+  }, data);
+  await page.reload();
+  await page.waitForFunction(() => {
+    const el = document.getElementById('outSpot');
+    return el && !el.textContent.includes('$0.00');
+  }, { timeout: 5000 });
+}
+
+test.describe('Sales Tax', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await mockSpotPrices(page, { gold: 2500, silver: 32 });
+  });
+
+  test('no tax when disabled', async ({ page }) => {
+    await seedTaxData(page, { settings: { taxEnabled: false } });
+    await page.click('[data-page="calculator"]');
+    // Set to sell, gold coins, qty 1
+    await page.click('[data-value="sell"]');
+    await page.fill('#calcQty', '1');
+    await page.click('#logDealBtn');
+    // Get the logged transaction
+    const tx = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions') || '[]');
+      return txs[txs.length - 1];
+    });
+    expect(tx.taxAmount || 0).toBe(0);
+  });
+
+  test('tax on sell — HI 4%', async ({ page }) => {
+    await seedTaxData(page);
+    await page.click('[data-page="calculator"]');
+    await page.click('[data-value="sell"]');
+    await page.fill('#calcQty', '1');
+    await page.click('#logDealBtn');
+    const tx = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions') || '[]');
+      return txs[txs.length - 1];
+    });
+    expect(tx.taxRate).toBe(4);
+    expect(tx.taxAmount).toBeGreaterThan(0);
+    expect(tx.total).toBeCloseTo(tx.subtotal + tx.taxAmount, 2);
+  });
+
+  test('no tax on buy', async ({ page }) => {
+    await seedTaxData(page);
+    await page.click('[data-page="calculator"]');
+    // Buy is the default type
+    await page.fill('#calcQty', '1');
+    await page.click('#logDealBtn');
+    const tx = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions') || '[]');
+      return txs[txs.length - 1];
+    });
+    expect(tx.taxAmount).toBe(0);
+  });
+
+  test('no tax on wholesale', async ({ page }) => {
+    await seedTaxData(page);
+    await page.click('[data-page="calculator"]');
+    await page.click('[data-value="wholesale"]');
+    await page.fill('#calcQty', '1');
+    await page.click('#logDealBtn');
+    const tx = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions') || '[]');
+      return txs[txs.length - 1];
+    });
+    expect(tx.taxAmount).toBe(0);
+  });
+
+  test('threshold exempt — CA >$2000', async ({ page }) => {
+    await seedTaxData(page, { settings: { taxState: 'CA' } });
+    await page.click('[data-page="calculator"]');
+    await page.click('[data-value="sell"]');
+    // Gold at $2500/oz, sell prem 7% = $2675/oz. 1 oz > $2000 threshold → exempt
+    await page.fill('#calcQty', '1');
+    await page.click('#logDealBtn');
+    const tx = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions') || '[]');
+      return txs[txs.length - 1];
+    });
+    expect(tx.taxAmount).toBe(0);
+  });
+
+  test('threshold applies — CA ≤$2000', async ({ page }) => {
+    await seedTaxData(page, { settings: { taxState: 'CA' } });
+    await page.click('[data-page="calculator"]');
+    await page.click('[data-value="sell"]');
+    // Switch to silver — $32/oz + 7% = $34.24/oz. Need subtotal ≤ $2000.
+    await page.selectOption('#calcMetal', 'silver');
+    await page.selectOption('#calcForm', 'bars');
+    await page.fill('#calcQty', '10'); // ~$342.40 — well under $2000
+    await page.click('#logDealBtn');
+    const tx = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions') || '[]');
+      return txs[txs.length - 1];
+    });
+    expect(tx.taxRate).toBe(7.25);
+    expect(tx.taxAmount).toBeGreaterThan(0);
+  });
+
+  test('rate override', async ({ page }) => {
+    await seedTaxData(page, { settings: { taxRateOverride: 3.5 } });
+    await page.click('[data-page="calculator"]');
+    await page.click('[data-value="sell"]');
+    await page.fill('#calcQty', '1');
+    await page.click('#logDealBtn');
+    const tx = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions') || '[]');
+      return txs[txs.length - 1];
+    });
+    expect(tx.taxRate).toBe(3.5);
+    expect(tx.taxAmount).toBeGreaterThan(0);
+  });
+
+  test('receipt shows tax', async ({ page }) => {
+    // Seed a sell transaction with tax
+    const sellTx = {
+      id: 'tx-tax-receipt',
+      date: new Date().toISOString(),
+      type: 'sell',
+      metal: 'gold',
+      form: 'coins',
+      coinType: 'eagles',
+      qty: 1,
+      spot: 2500,
+      price: 2675,
+      subtotal: 2675,
+      taxRate: 4,
+      taxAmount: 107,
+      total: 2782,
+      profit: 175,
+      payment: 'cash',
+      lines: [{ metal: 'gold', form: 'coins', coinType: 'eagles', qty: 1, spot: 2500, price: 2675, total: 2675, profit: 175 }]
+    };
+    await seedTaxData(page, { transactions: [sellTx] });
+    // Open receipt via showReceipt
+    await page.evaluate(() => window.showReceipt('tx-tax-receipt'));
+    await page.waitForSelector('#receiptModal.open');
+    const receiptHtml = await page.innerHTML('#receiptContent');
+    expect(receiptHtml).toContain('Subtotal');
+    expect(receiptHtml).toContain('Sales Tax');
+    expect(receiptHtml).toContain('4%');
+  });
+
+  test('P&L excludes tax from revenue', async ({ page }) => {
+    const sellTx = {
+      id: 'tx-tax-pnl',
+      date: new Date().toISOString(),
+      type: 'sell',
+      metal: 'gold',
+      form: 'bars',
+      qty: 1,
+      spot: 2500,
+      price: 2625,
+      subtotal: 2625,
+      taxRate: 4,
+      taxAmount: 105,
+      total: 2730,
+      profit: 125,
+      payment: 'cash',
+      lines: [{ metal: 'gold', form: 'bars', qty: 1, spot: 2500, price: 2625, total: 2625, profit: 125 }]
+    };
+    await seedTaxData(page, { transactions: [sellTx] });
+    await page.click('[data-page="pnl"]');
+    // Revenue should show subtotal (2625), not total with tax (2730)
+    const soldText = await page.textContent('#pnlSold');
+    expect(soldText).toContain('2,625');
+    // Tax collected card should be visible
+    const taxCard = await page.locator('#pnlTaxCard');
+    await expect(taxCard).toBeVisible();
+    const taxText = await page.textContent('#pnlTaxCollected');
+    expect(taxText).toContain('105');
+  });
+
+  test('backward compat — old tx without tax fields', async ({ page }) => {
+    const oldTx = {
+      id: 'tx-old-compat',
+      date: new Date().toISOString(),
+      type: 'sell',
+      metal: 'gold',
+      form: 'coins',
+      coinType: 'eagles',
+      qty: 1,
+      spot: 2500,
+      price: 2675,
+      total: 2675,
+      profit: 175,
+      payment: 'cash',
+      lines: [{ metal: 'gold', form: 'coins', coinType: 'eagles', qty: 1, spot: 2500, price: 2675, total: 2675, profit: 175 }]
+    };
+    await seedTaxData(page, { transactions: [oldTx] });
+    // Check receipt — should show total without tax line
+    await page.evaluate(() => window.showReceipt('tx-old-compat'));
+    await page.waitForSelector('#receiptModal.open');
+    const receiptHtml = await page.innerHTML('#receiptContent');
+    expect(receiptHtml).toContain('Total Amount');
+    expect(receiptHtml).not.toContain('Subtotal');
+    expect(receiptHtml).not.toContain('Sales Tax');
+  });
+
+  test('CSV has Tax column', async ({ page }) => {
+    const sellTx = {
+      id: 'tx-tax-csv',
+      date: new Date().toISOString(),
+      type: 'sell',
+      metal: 'gold',
+      form: 'bars',
+      qty: 1,
+      spot: 2500,
+      price: 2625,
+      subtotal: 2625,
+      taxRate: 4,
+      taxAmount: 105,
+      total: 2730,
+      profit: 125,
+      payment: 'cash',
+      lines: [{ metal: 'gold', form: 'bars', qty: 1, spot: 2500, price: 2625, total: 2625, profit: 125 }]
+    };
+    await seedTaxData(page, { transactions: [sellTx] });
+    await page.click('[data-page="transactions"]');
+    // Intercept download
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('#exportCsvBtn'),
+    ]);
+    const content = await download.createReadStream().then(stream => {
+      return new Promise(resolve => {
+        let data = '';
+        stream.on('data', chunk => data += chunk);
+        stream.on('end', () => resolve(data));
+      });
+    });
+    expect(content).toContain('"Tax"');
+    expect(content).toContain('"105"');
+  });
+});
