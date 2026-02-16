@@ -1891,6 +1891,21 @@ function getTypeLabel(type) {
   return { buy: 'Retail Buy', sell: 'Retail Sell', wholesale: 'Wholesale' }[type] || type;
 }
 
+// ─── 24-Hour Cash Aggregation (Form 8300) ───
+function get24HourCashTotal(customerId, referenceDate, excludeTxId) {
+  if (!customerId) return 0;
+  const refMs = new Date(referenceDate).getTime();
+  const windowMs = 86400000; // 24 hours
+  return transactions.reduce((sum, t) => {
+    if (excludeTxId && t.id === excludeTxId) return sum;
+    if (t.customerId !== customerId) return sum;
+    if (t.payment !== 'cash') return sum;
+    if (t.total <= 0) return sum;
+    if (Math.abs(new Date(t.date).getTime() - refMs) > windowMs) return sum;
+    return sum + t.total;
+  }, 0);
+}
+
 // ─── Pricing Engine ───
 function getMargin(txType, form, coinType) {
   let base = 0;
@@ -2020,14 +2035,27 @@ function recalcDeal() {
 
   $('logDealBtn').disabled = qty <= 0;
 
-  // Form 8300 compliance warning
+  // Form 8300 compliance warning (single + 24hr aggregation)
   const payment = calcPayment.value;
   const totalValue = deal.isJunk ? deal.pricePerUnit * qty : (deal.pricePerOz || 0) * qty;
   const cashWarning = $('cashWarning');
-  if (payment === 'cash' && totalValue >= 10000 && qty > 0) {
-    cashWarning.classList.add('visible');
-    const hasCustomer = !!$('selectedCustomerId').value;
-    $('cashWarningCustomer').style.display = hasCustomer ? 'none' : 'block';
+  const customerId = $('selectedCustomerId').value;
+
+  if (payment === 'cash' && qty > 0) {
+    const prior24h = customerId ? get24HourCashTotal(customerId, new Date().toISOString()) : 0;
+    const combinedTotal = prior24h + totalValue;
+
+    if (combinedTotal >= 10000) {
+      cashWarning.classList.add('visible');
+      if (prior24h > 0 && totalValue < 10000) {
+        $('cashWarningText').textContent = 'Combined cash from this customer in 24hrs: ' + fmt(combinedTotal) + ' — Form 8300 reporting required';
+      } else {
+        $('cashWarningText').textContent = 'Cash transaction ≥ $10,000 — Form 8300 reporting required';
+      }
+      $('cashWarningCustomer').style.display = customerId ? 'none' : 'block';
+    } else {
+      cashWarning.classList.remove('visible');
+    }
   } else {
     cashWarning.classList.remove('visible');
   }
@@ -2074,9 +2102,24 @@ $('logDealBtn').addEventListener('click', () => {
     customerId: selectedCustomerIdInput.value || undefined
   };
 
-  // Form 8300 compliance flag
+  // Form 8300 compliance flag (single transaction)
   if (tx.payment === 'cash' && tx.total >= 10000) {
     tx.form8300Flag = true;
+  }
+
+  // Form 8300 24-hour aggregation flag
+  if (tx.payment === 'cash' && tx.customerId && tx.total > 0) {
+    const prior24h = get24HourCashTotal(tx.customerId, tx.date);
+    if (prior24h + tx.total >= 10000) {
+      tx.form8300Flag = true;
+      // Flag all related cash transactions in the 24hr window
+      transactions.forEach(t => {
+        if (t.customerId === tx.customerId && t.payment === 'cash' && t.total > 0 &&
+            Math.abs(new Date(t.date).getTime() - new Date(tx.date).getTime()) <= 86400000) {
+          t.form8300Flag = true;
+        }
+      });
+    }
   }
 
   transactions.unshift(tx);
@@ -2282,7 +2325,14 @@ $('editSaveBtn').addEventListener('click', () => {
   const editedCustomerId = $('editCustomer').value || undefined;
 
   const editedPayment = $('editPayment').value;
-  const editedFlag = (editedPayment === 'cash' && total >= 10000);
+  const txDate = transactions[idx].date;
+  const txId = transactions[idx].id;
+  let editedFlag = (editedPayment === 'cash' && total >= 10000);
+  // 24-hour aggregation check on edit
+  if (!editedFlag && editedPayment === 'cash' && editedCustomerId && total > 0) {
+    const prior24h = get24HourCashTotal(editedCustomerId, txDate, txId);
+    if (prior24h + total >= 10000) editedFlag = true;
+  }
   const existingFlag = transactions[idx].form8300Flag;
 
   transactions[idx] = {
@@ -2600,6 +2650,37 @@ function checkAlerts() {
   const needsReviewCount = transactions.filter(t => t.form8300Flag && !t.form8300Reviewed).length;
   if (needsReviewCount > 0) {
     alerts.push(`${needsReviewCount} transaction(s) flagged for Form 8300 review`);
+  }
+
+  // Retroactive 24-hour aggregation detection
+  const cashTxByCustomer = {};
+  transactions.forEach(t => {
+    if (t.payment === 'cash' && t.customerId && t.total > 0) {
+      if (!cashTxByCustomer[t.customerId]) cashTxByCustomer[t.customerId] = [];
+      cashTxByCustomer[t.customerId].push(t);
+    }
+  });
+  const unflaggedCustomers = [];
+  Object.entries(cashTxByCustomer).forEach(([cid, txs]) => {
+    for (let i = 0; i < txs.length; i++) {
+      const refMs = new Date(txs[i].date).getTime();
+      let windowTotal = 0;
+      let hasUnflagged = false;
+      for (let j = 0; j < txs.length; j++) {
+        if (Math.abs(new Date(txs[j].date).getTime() - refMs) <= 86400000) {
+          windowTotal += txs[j].total;
+          if (!txs[j].form8300Flag) hasUnflagged = true;
+        }
+      }
+      if (windowTotal >= 10000 && hasUnflagged) {
+        const name = getCustomerName(cid);
+        if (name && !unflaggedCustomers.includes(name)) unflaggedCustomers.push(name);
+        break;
+      }
+    }
+  });
+  if (unflaggedCustomers.length > 0) {
+    alerts.push(`${unflaggedCustomers.length} un-flagged 24-hour cash aggregation(s) detected for: ${unflaggedCustomers.join(', ')}`);
   }
 
   const banner = $('alertBanner');
