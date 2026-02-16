@@ -464,6 +464,111 @@ body {
 
 .deal-logged-msg.show { opacity: 1; }
 
+.deal-action-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.add-line-btn {
+  flex: 1;
+  padding: 14px;
+  border: 2px dashed var(--gold);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gold);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: opacity var(--transition), background var(--transition);
+}
+
+.add-line-btn:hover { background: rgba(201,168,76,0.08); }
+.add-line-btn:disabled { opacity: 0.4; cursor: not-allowed; background: transparent; }
+
+.deal-lines-container {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.deal-lines-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.deal-lines-count {
+  background: var(--gold);
+  color: #0a0a0a;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  margin-left: 6px;
+}
+
+.deal-line-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.deal-line-item:last-child { border-bottom: none; }
+
+.deal-line-desc {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.deal-line-total {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 12px;
+}
+
+.deal-line-remove {
+  background: none;
+  border: none;
+  color: var(--red);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background var(--transition);
+}
+
+.deal-line-remove:hover { background: rgba(229,57,53,0.1); }
+
+.deal-lines-totals {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.deal-lines-totals .total-label { color: var(--text-secondary); }
+.deal-lines-totals .total-value { font-family: var(--mono); color: var(--text-primary); }
+.deal-lines-totals .profit-value { font-family: var(--mono); }
+
 /* ═══════════════════════════════════════ */
 /* TRANSACTION LOG                        */
 /* ═══════════════════════════════════════ */
@@ -1814,7 +1919,22 @@ tr.compliance-row-flagged.compliance-row-1099b {
             <div id="warning1099BW9" style="font-size:12px;margin-top:4px;color:#1976D2;display:none;">W-9 not on file for this customer — collect before completing transaction</div>
           </div>
         </div>
-        <button class="log-deal-btn" id="logDealBtn" disabled>Log This Deal</button>
+        <div id="dealLinesContainer" style="display:none;">
+          <div class="deal-lines-container">
+            <div class="deal-lines-header">
+              <span>Deal Lines <span class="deal-lines-count" id="dealLinesCount">0</span></span>
+            </div>
+            <div id="dealLinesList"></div>
+            <div class="deal-lines-totals">
+              <span class="total-label">Combined Total: <span class="total-value" id="dealLinesTotal">$0.00</span></span>
+              <span class="total-label">Profit: <span class="profit-value green" id="dealLinesProfit">+$0.00</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="deal-action-buttons">
+          <button class="add-line-btn" id="addLineBtn" disabled>+ Add Line</button>
+          <button class="log-deal-btn" id="logDealBtn" disabled style="margin-top:0;">Log Deal</button>
+        </div>
         <div class="deal-logged-msg" id="dealLoggedMsg">Deal logged successfully!</div>
       </div>
     </div>
@@ -2636,6 +2756,11 @@ function getTypeLabel(type) {
   return { buy: 'Retail Buy', sell: 'Retail Sell', wholesale: 'Wholesale' }[type] || type;
 }
 
+function getTxLines(tx) {
+  if (tx.lines && tx.lines.length > 0) return tx.lines;
+  return [{ metal: tx.metal, form: tx.form, coinType: tx.coinType, qty: tx.qty, spot: tx.spot, price: tx.price, total: tx.total, profit: tx.profit }];
+}
+
 // ─── 24-Hour Cash Aggregation (Form 8300) ───
 function get24HourCashTotal(customerId, referenceDate, excludeTxId) {
   if (!customerId) return 0;
@@ -2691,9 +2816,12 @@ function get24Hour1099BQty(customerId, metal, form, coinType, referenceDate, exc
     if (excludeTxId && t.id === excludeTxId) return sum;
     if (t.customerId !== customerId) return sum;
     if (t.type !== 'buy') return sum;
-    if (get1099BProductKey(t.metal, t.form, t.coinType) !== key) return sum;
     if (Math.abs(new Date(t.date).getTime() - refMs) > windowMs) return sum;
-    return sum + t.qty;
+    let lineSum = 0;
+    getTxLines(t).forEach(l => {
+      if (get1099BProductKey(l.metal, l.form, l.coinType) === key) lineSum += l.qty;
+    });
+    return sum + lineSum;
   }, 0);
 }
 
@@ -2766,6 +2894,92 @@ function calcDealPrice(metal, form, txType, coinType) {
   return { spot, pricePerOz, margin, isJunk: false };
 }
 
+// ─── Deal Lines State ───
+let dealLines = [];
+
+function getLineDescription(line) {
+  const metalLabel = line.metal === 'gold' ? 'Gold' : 'Silver';
+  const formLabel = getFormDisplayLabel(line.form, line.coinType);
+  const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : fmtOz(line.qty) + ' oz';
+  return `${metalLabel} ${formLabel} — ${qtyLabel}`;
+}
+
+function addLineToDeal() {
+  const metal = $('calcMetal').value;
+  const form = $('calcForm').value;
+  const coinType = form === 'coins' ? $('calcCoinType').value : null;
+  const qty = parseFloat($('calcQty').value) || 0;
+  if (qty <= 0) return;
+
+  const deal = calcDealPrice(metal, form, calcTxType, coinType);
+  if (deal.spot <= 0) return;
+
+  let pricePerUnit, totalValue, profit;
+  if (deal.isJunk) {
+    pricePerUnit = deal.pricePerUnit;
+    totalValue = pricePerUnit * qty;
+    const spotValue = (deal.spot / settings.junkDivisor) * qty;
+    profit = calcTxType === 'sell' ? totalValue - spotValue : spotValue - totalValue;
+  } else {
+    pricePerUnit = deal.pricePerOz;
+    totalValue = pricePerUnit * qty;
+    profit = calcTxType === 'sell' ? (pricePerUnit - deal.spot) * qty : (deal.spot - pricePerUnit) * qty;
+  }
+
+  dealLines.push({
+    metal,
+    form,
+    coinType: coinType || undefined,
+    qty,
+    spot: deal.spot,
+    price: pricePerUnit,
+    total: totalValue,
+    profit
+  });
+
+  $('calcQty').value = '';
+  renderDealLines();
+  recalcDeal();
+}
+
+function removeLineFromDeal(index) {
+  dealLines.splice(index, 1);
+  renderDealLines();
+  recalcDeal();
+}
+
+window.removeLineFromDeal = removeLineFromDeal;
+
+function renderDealLines() {
+  const container = $('dealLinesContainer');
+  const list = $('dealLinesList');
+  const countBadge = $('dealLinesCount');
+  const totalEl = $('dealLinesTotal');
+  const profitEl = $('dealLinesProfit');
+
+  if (dealLines.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  countBadge.textContent = dealLines.length;
+
+  list.innerHTML = dealLines.map((line, i) => `
+    <div class="deal-line-item">
+      <span class="deal-line-desc">${esc(getLineDescription(line))}</span>
+      <span class="deal-line-total">${fmt(line.total)}</span>
+      <button class="deal-line-remove" onclick="removeLineFromDeal(${i})" title="Remove">&times;</button>
+    </div>
+  `).join('');
+
+  const combinedTotal = dealLines.reduce((s, l) => s + l.total, 0);
+  const combinedProfit = dealLines.reduce((s, l) => s + l.profit, 0);
+  totalEl.textContent = fmt(combinedTotal);
+  profitEl.textContent = (combinedProfit >= 0 ? '+' : '-') + fmt(combinedProfit);
+  profitEl.className = 'profit-value ' + (combinedProfit >= 0 ? 'green' : 'red');
+}
+
 // ─── Deal Calculator ───
 const calcMetal = $('calcMetal');
 const calcForm = $('calcForm');
@@ -2802,6 +3016,8 @@ $('calcCoinType').addEventListener('change', recalcDeal);
 calcMetal.addEventListener('change', recalcDeal);
 calcQty.addEventListener('input', recalcDeal);
 calcPayment.addEventListener('change', recalcDeal);
+
+$('addLineBtn').addEventListener('click', addLineToDeal);
 
 function updateQtyLabel() {
   $('qtyLabel').textContent = calcForm.value === 'junk' ? 'Face Value ($)' : 'Quantity (Troy Oz)';
@@ -2849,15 +3065,18 @@ function recalcDeal() {
     $('outProfit').textContent = (profit >= 0 ? '+' : '-') + fmt(profit);
   }
 
-  $('logDealBtn').disabled = qty <= 0;
+  $('addLineBtn').disabled = qty <= 0;
+  $('logDealBtn').disabled = dealLines.length === 0 && qty <= 0;
 
   // Form 8300 compliance warning (single + 24hr aggregation)
   const payment = calcPayment.value;
-  const totalValue = deal.isJunk ? deal.pricePerUnit * qty : (deal.pricePerOz || 0) * qty;
+  const currentLineTotal = deal.isJunk ? deal.pricePerUnit * qty : (deal.pricePerOz || 0) * qty;
+  const dealLinesTotal = dealLines.reduce((s, l) => s + l.total, 0);
+  const totalValue = currentLineTotal + dealLinesTotal;
   const cashWarning = $('cashWarning');
   const customerId = $('selectedCustomerId').value;
 
-  if (payment === 'cash' && qty > 0) {
+  if (payment === 'cash' && (qty > 0 || dealLines.length > 0)) {
     const prior24h = customerId ? get24HourCashTotal(customerId, new Date().toISOString()) : 0;
     const combinedTotal = prior24h + totalValue;
 
@@ -2909,48 +3128,44 @@ function recalcDeal() {
 
 // ─── Log Deal ───
 $('logDealBtn').addEventListener('click', () => {
-  const metal = calcMetal.value;
-  const form = calcForm.value;
-  const coinType = form === 'coins' ? $('calcCoinType').value : null;
-  const qty = parseFloat(calcQty.value) || 0;
-  if (qty <= 0) return;
-
-  const deal = calcDealPrice(metal, form, calcTxType, coinType);
-  if (deal.spot <= 0) { alert('Spot price is not loaded or invalid.'); return; }
-  let pricePerUnit, totalValue, profit;
-
-  if (deal.isJunk) {
-    pricePerUnit = deal.pricePerUnit;
-    totalValue = pricePerUnit * qty;
-    const spotValue = (deal.spot / settings.junkDivisor) * qty;
-    profit = calcTxType === 'sell' ? totalValue - spotValue :
-             spotValue - totalValue;
-  } else {
-    pricePerUnit = deal.pricePerOz;
-    totalValue = pricePerUnit * qty;
-    profit = calcTxType === 'sell' ? (pricePerUnit - deal.spot) * qty :
-             (deal.spot - pricePerUnit) * qty;
+  // If current form has a qty, add it as a line first
+  const currentQty = parseFloat(calcQty.value) || 0;
+  if (currentQty > 0) {
+    addLineToDeal();
   }
 
-  if (totalValue <= 0) { alert('Calculated total value is invalid.'); return; }
+  if (dealLines.length === 0) return;
+
+  const combinedTotal = dealLines.reduce((s, l) => s + l.total, 0);
+  const combinedProfit = dealLines.reduce((s, l) => s + l.profit, 0);
+
+  if (combinedTotal <= 0) { alert('Calculated total value is invalid.'); return; }
+
+  // Check spot price on first line
+  if (dealLines[0].spot <= 0) { alert('Spot price is not loaded or invalid.'); return; }
 
   const selectedCustomerIdInput = $('selectedCustomerId');
   const tx = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     date: new Date().toISOString(),
-    metal,
-    form,
-    coinType: coinType || undefined,
     type: calcTxType,
-    qty,
-    spot: deal.spot,
-    price: pricePerUnit,
-    total: totalValue,
+    total: combinedTotal,
     payment: calcPayment.value,
-    profit,
+    profit: combinedProfit,
     customerId: selectedCustomerIdInput.value || undefined,
-    notes: $('calcNotes').value.trim() || undefined
+    notes: $('calcNotes').value.trim() || undefined,
+    lines: [...dealLines]
   };
+
+  // For backward compat: copy flat fields from single-line deals
+  if (dealLines.length === 1) {
+    tx.metal = dealLines[0].metal;
+    tx.form = dealLines[0].form;
+    tx.coinType = dealLines[0].coinType;
+    tx.qty = dealLines[0].qty;
+    tx.spot = dealLines[0].spot;
+    tx.price = dealLines[0].price;
+  }
 
   // Form 8300 compliance flag (single transaction)
   if (tx.payment === 'cash' && tx.total >= 10000) {
@@ -2972,22 +3187,28 @@ $('logDealBtn').addEventListener('click', () => {
     }
   }
 
-  // 1099-B compliance flag (dealer buy-backs)
-  const result1099B = check1099B(tx);
-  if (result1099B.reportable) {
-    tx.form1099BFlag = true;
-    // If aggregated, retroactively flag all related buy transactions in 24hr window
-    if (tx.customerId) {
-      const key = get1099BProductKey(tx.metal, tx.form, tx.coinType);
-      transactions.forEach(t => {
-        if (t.customerId === tx.customerId && t.type === 'buy' &&
-            get1099BProductKey(t.metal, t.form, t.coinType) === key &&
-            Math.abs(new Date(t.date).getTime() - new Date(tx.date).getTime()) <= 86400000) {
-          t.form1099BFlag = true;
-        }
-      });
+  // 1099-B compliance flag — check per line
+  tx.lines.forEach(line => {
+    const pseudoTx = { type: tx.type, metal: line.metal, form: line.form, coinType: line.coinType, qty: line.qty, customerId: tx.customerId, date: tx.date };
+    const result1099B = check1099B(pseudoTx);
+    if (result1099B.reportable) {
+      tx.form1099BFlag = true;
+      // Retroactively flag related buy transactions in 24hr window
+      if (tx.customerId) {
+        const key = get1099BProductKey(line.metal, line.form, line.coinType);
+        transactions.forEach(t => {
+          if (t.customerId === tx.customerId && t.type === 'buy' &&
+              Math.abs(new Date(t.date).getTime() - new Date(tx.date).getTime()) <= 86400000) {
+            getTxLines(t).forEach(tl => {
+              if (get1099BProductKey(tl.metal, tl.form, tl.coinType) === key) {
+                t.form1099BFlag = true;
+              }
+            });
+          }
+        });
+      }
     }
-  }
+  });
 
   transactions.unshift(tx);
   Store.set('transactions', transactions);
@@ -3000,7 +3221,9 @@ $('logDealBtn').addEventListener('click', () => {
   // Show receipt
   showReceipt(tx.id);
 
-  // Reset qty, notes, and customer
+  // Reset dealLines, qty, notes, and customer
+  dealLines = [];
+  renderDealLines();
   calcQty.value = '';
   $('calcNotes').value = '';
   clearCustomer();
@@ -3025,8 +3248,8 @@ function getFilteredTransactions() {
 
   if (from) list = list.filter(t => t.date >= from);
   if (to) list = list.filter(t => t.date <= to + 'T23:59:59');
-  if (metal) list = list.filter(t => t.metal === metal);
-  if (form) list = list.filter(t => t.form === form);
+  if (metal) list = list.filter(t => getTxLines(t).some(l => l.metal === metal));
+  if (form) list = list.filter(t => getTxLines(t).some(l => l.form === form));
   if (type) list = list.filter(t => t.type === type);
   if (customerId) list = list.filter(t => t.customerId === customerId);
   if (compliance === 'flagged') list = list.filter(t => t.form8300Flag);
@@ -3069,7 +3292,26 @@ function renderTransactions() {
                     d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const typeClass = tx.type === 'buy' ? 'buy' : tx.type === 'sell' ? 'sell' : 'wholesale';
     const profitClass = tx.profit >= 0 ? 'profit-positive' : 'profit-negative';
-    const qtyLabel = tx.form === 'junk' ? '$' + fmtOz(tx.qty) + ' FV' : fmtOz(tx.qty) + ' oz';
+
+    const lines = getTxLines(tx);
+    const isMulti = lines.length > 1;
+    let metalCol, formCol, qtyLabel, spotCol, priceCol;
+
+    if (isMulti) {
+      const metals = [...new Set(lines.map(l => l.metal))];
+      metalCol = metals.map(m => m === 'gold' ? '<span style="color:var(--gold)">Au</span>' : '<span style="color:var(--silver)">Ag</span>').join('+');
+      formCol = lines.length + ' items';
+      qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : fmtOz(l.qty)).join(', ');
+      spotCol = '—';
+      priceCol = '—';
+    } else {
+      const line = lines[0];
+      metalCol = line.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
+      formCol = getFormDisplayLabel(line.form, line.coinType);
+      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : fmtOz(line.qty) + ' oz';
+      spotCol = fmt(line.spot);
+      priceCol = fmt(line.price);
+    }
 
     const badge8300 = tx.form8300Flag ? '<span class="compliance-badge">8300</span>' : '';
     const badge1099B = tx.form1099BFlag ? '<span class="compliance-badge-1099b">1099-B</span>' : '';
@@ -3081,13 +3323,13 @@ function renderTransactions() {
 
     return `<tr${rowClass}>
       <td class="mono">${dateStr}</td>
-      <td>${tx.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>'}</td>
-      <td>${getFormDisplayLabel(tx.form, tx.coinType)}</td>
+      <td>${metalCol}</td>
+      <td>${formCol}</td>
       <td><span class="type-badge ${typeClass}">${getTypeLabel(tx.type)}</span></td>
       <td>${tx.customerId && getCustomerName(tx.customerId) ? '<a href="#" onclick="openCustomerProfile(\'' + esc(tx.customerId) + '\');return false;" style="color:var(--gold);text-decoration:none;">' + esc(getCustomerName(tx.customerId)) + '</a>' : '—'}</td>
       <td class="mono">${qtyLabel}</td>
-      <td class="mono">${fmt(tx.spot)}</td>
-      <td class="mono">${fmt(tx.price)}</td>
+      <td class="mono">${spotCol}</td>
+      <td class="mono">${priceCol}</td>
       <td class="mono">${fmt(tx.total)}${flagBadge}</td>
       <td>${tx.payment === 'cash' ? 'Cash' : tx.payment === 'wire' ? 'Wire' : 'Check'}</td>
       <td class="${profitClass}">${(tx.profit >= 0 ? '+' : '-') + fmt(tx.profit)}</td>
@@ -3131,17 +3373,24 @@ $('exportCsvBtn').addEventListener('click', () => {
   const list = getFilteredTransactions();
   if (list.length === 0) return;
 
-  const headers = ['Date', 'Metal', 'Form', 'Coin Type', 'Type', 'Customer', 'Quantity', 'Spot Price', 'Our Price', 'Total', 'Payment', 'Profit', 'Form 8300', '1099-B', 'Notes'];
-  const rows = list.map(tx => [
-    new Date(tx.date).toLocaleString(),
-    tx.metal, getFormLabel(tx.form), tx.coinType ? getCoinTypeLabel(tx.coinType) : '',
-    getTypeLabel(tx.type),
-    getCustomerName(tx.customerId),
-    tx.qty, tx.spot, tx.price, tx.total, tx.payment, tx.profit,
-    tx.form8300Flag ? (tx.form8300Reviewed ? 'Reviewed' : 'Flagged') : '',
-    tx.form1099BFlag ? (tx.form1099BFiled ? 'Filed' : 'Flagged') : '',
-    tx.notes || ''
-  ]);
+  const headers = ['Deal ID', 'Date', 'Metal', 'Form', 'Coin Type', 'Type', 'Customer', 'Quantity', 'Spot Price', 'Our Price', 'Total', 'Payment', 'Profit', 'Form 8300', '1099-B', 'Notes'];
+  const rows = [];
+  list.forEach(tx => {
+    const lines = getTxLines(tx);
+    lines.forEach(line => {
+      rows.push([
+        tx.id,
+        new Date(tx.date).toLocaleString(),
+        line.metal, getFormLabel(line.form), line.coinType ? getCoinTypeLabel(line.coinType) : '',
+        getTypeLabel(tx.type),
+        getCustomerName(tx.customerId),
+        line.qty, line.spot, line.price, line.total, tx.payment, line.profit,
+        tx.form8300Flag ? (tx.form8300Reviewed ? 'Reviewed' : 'Flagged') : '',
+        tx.form1099BFlag ? (tx.form1099BFiled ? 'Filed' : 'Flagged') : '',
+        tx.notes || ''
+      ]);
+    });
+  });
 
   const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
@@ -3157,15 +3406,17 @@ $('exportCsvBtn').addEventListener('click', () => {
 window.openEditModal = function(id) {
   const tx = transactions.find(t => t.id === id);
   if (!tx) return;
+  const lines = getTxLines(tx);
+  const line = lines[0];
   $('editTxId').value = id;
-  $('editMetal').value = tx.metal;
-  $('editForm').value = tx.form;
-  $('editCoinTypeGroup').style.display = tx.form === 'coins' ? '' : 'none';
-  $('editCoinType').value = tx.coinType || '';
+  $('editMetal').value = line.metal;
+  $('editForm').value = line.form;
+  $('editCoinTypeGroup').style.display = line.form === 'coins' ? '' : 'none';
+  $('editCoinType').value = line.coinType || '';
   $('editType').value = tx.type;
-  $('editQty').value = tx.qty;
-  $('editSpot').value = tx.spot;
-  $('editPrice').value = tx.price;
+  $('editQty').value = line.qty;
+  $('editSpot').value = line.spot;
+  $('editPrice').value = line.price;
   $('editPayment').value = tx.payment;
   $('editNotes').value = tx.notes || '';
   populateEditCustomerSelect();
@@ -3242,22 +3493,54 @@ $('editSaveBtn').addEventListener('click', () => {
   const edited1099BFlag = result1099B.reportable;
   const existing1099BFlag = transactions[idx].form1099BFlag;
 
-  transactions[idx] = {
-    ...transactions[idx],
-    metal: $('editMetal').value,
-    form: editedForm,
-    coinType: editedCoinType,
-    type,
-    qty, spot, price, total,
-    payment: editedPayment,
-    profit,
-    customerId: editedCustomerId,
-    notes: $('editNotes').value.trim() || undefined,
-    form8300Flag: editedFlag || undefined,
-    form8300Reviewed: editedFlag && existingFlag ? $('editForm8300Reviewed').checked : undefined,
-    form1099BFlag: edited1099BFlag || undefined,
-    form1099BFiled: edited1099BFlag && existing1099BFlag ? $('editForm1099BFiled').checked : undefined
-  };
+  const existingLines = transactions[idx].lines;
+  const updatedLine = { metal: $('editMetal').value, form: editedForm, coinType: editedCoinType, qty, spot, price, total, profit };
+
+  if (existingLines && existingLines.length > 1) {
+    // Multi-line: update first line, recompute deal totals
+    existingLines[0] = updatedLine;
+    const dealTotal = existingLines.reduce((s, l) => s + l.total, 0);
+    const dealProfit = existingLines.reduce((s, l) => s + l.profit, 0);
+    // Recalculate 8300 flag with new deal total
+    editedFlag = (editedPayment === 'cash' && dealTotal >= 10000);
+    if (!editedFlag && editedPayment === 'cash' && editedCustomerId && dealTotal > 0) {
+      const prior24h = get24HourCashTotal(editedCustomerId, txDate, txId);
+      if (prior24h + dealTotal >= 10000) editedFlag = true;
+    }
+
+    transactions[idx] = {
+      ...transactions[idx],
+      type,
+      total: dealTotal,
+      payment: editedPayment,
+      profit: dealProfit,
+      customerId: editedCustomerId,
+      notes: $('editNotes').value.trim() || undefined,
+      form8300Flag: editedFlag || undefined,
+      form8300Reviewed: editedFlag && existingFlag ? $('editForm8300Reviewed').checked : undefined,
+      form1099BFlag: edited1099BFlag || undefined,
+      form1099BFiled: edited1099BFlag && existing1099BFlag ? $('editForm1099BFiled').checked : undefined,
+      lines: existingLines
+    };
+  } else {
+    transactions[idx] = {
+      ...transactions[idx],
+      metal: $('editMetal').value,
+      form: editedForm,
+      coinType: editedCoinType,
+      type,
+      qty, spot, price, total,
+      payment: editedPayment,
+      profit,
+      customerId: editedCustomerId,
+      notes: $('editNotes').value.trim() || undefined,
+      form8300Flag: editedFlag || undefined,
+      form8300Reviewed: editedFlag && existingFlag ? $('editForm8300Reviewed').checked : undefined,
+      form1099BFlag: edited1099BFlag || undefined,
+      form1099BFiled: edited1099BFlag && existing1099BFlag ? $('editForm1099BFiled').checked : undefined,
+      lines: [updatedLine]
+    };
+  }
 
   Store.set('transactions', transactions);
   $('editModal').classList.remove('open');
@@ -3307,9 +3590,42 @@ function generateReceipt(tx) {
   const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const paymentLabel = tx.payment === 'cash' ? 'Cash' : tx.payment === 'wire' ? 'Bank Wire' : 'Check';
   const typeLabel = tx.type === 'buy' ? 'PURCHASE FROM CUSTOMER' : tx.type === 'sell' ? 'SALE TO CUSTOMER' : 'WHOLESALE';
-  const qtyLabel = tx.form === 'junk' ? '$' + fmtOz(tx.qty) + ' Face Value' : fmtOz(tx.qty) + ' troy oz';
-  const metalLabel = tx.metal === 'gold' ? 'Gold' : 'Silver';
   const txId = tx.id.toUpperCase().slice(0, 10);
+  const lines = getTxLines(tx);
+  const isMulti = lines.length > 1;
+
+  let itemsHtml;
+  if (isMulti) {
+    itemsHtml = `<div class="receipt-body">` +
+      lines.map((line, i) => {
+        const metalLabel = line.metal === 'gold' ? 'Gold' : 'Silver';
+        const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : fmtOz(line.qty) + ' oz';
+        return `
+          <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px dotted #ddd;">
+            <div style="font-weight:700;font-size:12px;color:#888;margin-bottom:4px;">Item ${i + 1}</div>
+            <div class="receipt-row"><span class="receipt-label">Metal</span><span class="receipt-val">${metalLabel}</span></div>
+            <div class="receipt-row"><span class="receipt-label">Form</span><span class="receipt-val">${getFormDisplayLabel(line.form, line.coinType)}</span></div>
+            <div class="receipt-row"><span class="receipt-label">Quantity</span><span class="receipt-val">${qtyLabel}</span></div>
+            <div class="receipt-row"><span class="receipt-label">Price</span><span class="receipt-val">${line.form === 'junk' ? line.price.toFixed(2) + 'x face' : fmt(line.price) + ' / oz'}</span></div>
+            <div class="receipt-row"><span class="receipt-label">Subtotal</span><span class="receipt-val">${fmt(line.total)}</span></div>
+          </div>`;
+      }).join('') +
+      `<div class="receipt-row"><span class="receipt-label">Payment Method</span><span class="receipt-val">${paymentLabel}</span></div>
+      </div>`;
+  } else {
+    const line = lines[0];
+    const metalLabel = line.metal === 'gold' ? 'Gold' : 'Silver';
+    const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' Face Value' : fmtOz(line.qty) + ' troy oz';
+    itemsHtml = `
+    <div class="receipt-body">
+      <div class="receipt-row"><span class="receipt-label">Metal</span><span class="receipt-val">${metalLabel}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Form</span><span class="receipt-val">${getFormDisplayLabel(line.form, line.coinType)}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Quantity</span><span class="receipt-val">${qtyLabel}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Spot Price</span><span class="receipt-val">${fmt(line.spot)} / oz</span></div>
+      <div class="receipt-row"><span class="receipt-label">${tx.type === 'sell' ? 'Sale' : 'Buy'} Price</span><span class="receipt-val">${line.form === 'junk' ? line.price.toFixed(2) + 'x face' : fmt(line.price) + ' / oz'}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Payment Method</span><span class="receipt-val">${paymentLabel}</span></div>
+    </div>`;
+  }
 
   return `
     <div class="receipt-header">
@@ -3322,32 +3638,7 @@ function generateReceipt(tx) {
     <div style="text-align:center;margin-bottom:16px;">
       <span style="background:#f0f0f0;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px;">${typeLabel}</span>
     </div>
-    <div class="receipt-body">
-      <div class="receipt-row">
-        <span class="receipt-label">Metal</span>
-        <span class="receipt-val">${metalLabel}</span>
-      </div>
-      <div class="receipt-row">
-        <span class="receipt-label">Form</span>
-        <span class="receipt-val">${getFormDisplayLabel(tx.form, tx.coinType)}</span>
-      </div>
-      <div class="receipt-row">
-        <span class="receipt-label">Quantity</span>
-        <span class="receipt-val">${qtyLabel}</span>
-      </div>
-      <div class="receipt-row">
-        <span class="receipt-label">Spot Price</span>
-        <span class="receipt-val">${fmt(tx.spot)} / oz</span>
-      </div>
-      <div class="receipt-row">
-        <span class="receipt-label">${tx.type === 'sell' ? 'Sale' : 'Buy'} Price</span>
-        <span class="receipt-val">${tx.form === 'junk' ? tx.price.toFixed(2) + 'x face' : fmt(tx.price) + ' / oz'}</span>
-      </div>
-      <div class="receipt-row">
-        <span class="receipt-label">Payment Method</span>
-        <span class="receipt-val">${paymentLabel}</span>
-      </div>
-    </div>
+    ${itemsHtml}
     <div class="receipt-total">
       <div class="receipt-total-label">Total Amount</div>
       <div class="receipt-total-value">${fmt(tx.total)}${tx.form8300Flag ? '<span class="compliance-indicator"></span>' : ''}</div>
@@ -3404,13 +3695,15 @@ function getInventory() {
   forms.forEach(f => { inv.gold[f] = 0; inv.silver[f] = 0; });
 
   transactions.forEach(tx => {
-    const metal = tx.metal;
-    const qty = tx.form === 'junk' ? tx.qty / settings.junkDivisor : tx.qty; // Convert junk FV to approx oz
-    if (tx.type === 'buy') {
-      inv[metal][tx.form] += qty;
-    } else {
-      inv[metal][tx.form] -= qty;
-    }
+    getTxLines(tx).forEach(line => {
+      const metal = line.metal;
+      const qty = line.form === 'junk' ? line.qty / settings.junkDivisor : line.qty;
+      if (tx.type === 'buy') {
+        inv[metal][line.form] += qty;
+      } else {
+        inv[metal][line.form] -= qty;
+      }
+    });
   });
 
   const totalGold = Object.values(inv.gold).reduce((s, v) => s + v, 0);
@@ -4126,7 +4419,20 @@ function updateDashboard() {
                     d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const typeClass = tx.type === 'buy' ? 'buy' : tx.type === 'sell' ? 'sell' : 'wholesale';
     const profitClass = tx.profit >= 0 ? 'profit-positive' : 'profit-negative';
-    const qtyLabel = tx.form === 'junk' ? '$' + fmtOz(tx.qty) + ' FV' : fmtOz(tx.qty) + ' oz';
+
+    const lines = getTxLines(tx);
+    const isMulti = lines.length > 1;
+    let metalCol, qtyLabel;
+    if (isMulti) {
+      const metals = [...new Set(lines.map(l => l.metal))];
+      metalCol = metals.map(m => m === 'gold' ? '<span style="color:var(--gold)">Au</span>' : '<span style="color:var(--silver)">Ag</span>').join('+');
+      qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : fmtOz(l.qty)).join(', ');
+    } else {
+      const line = lines[0];
+      metalCol = line.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
+      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : fmtOz(line.qty) + ' oz';
+    }
+
     const custName = getCustomerName(tx.customerId);
     const custCell = custName
       ? `<a href="#" onclick="openCustomerProfile('${esc(tx.customerId)}');return false;" style="color:var(--gold);text-decoration:none;">${esc(custName)}</a>`
@@ -4134,7 +4440,7 @@ function updateDashboard() {
 
     return `<tr>
       <td class="mono">${dateStr}</td>
-      <td>${tx.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>'}</td>
+      <td>${metalCol}</td>
       <td><span class="type-badge ${typeClass}">${getTypeLabel(tx.type)}</span></td>
       <td>${custCell}</td>
       <td class="mono">${qtyLabel}</td>
@@ -4211,13 +4517,28 @@ window.openCustomerProfile = function(customerId) {
                       d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       const typeClass = tx.type === 'buy' ? 'buy' : tx.type === 'sell' ? 'sell' : 'wholesale';
       const profitClass = tx.profit >= 0 ? 'profit-positive' : 'profit-negative';
-      const qtyLabel = tx.form === 'junk' ? '$' + fmtOz(tx.qty) + ' FV' : fmtOz(tx.qty) + ' oz';
+
+      const lines = getTxLines(tx);
+      const isMulti = lines.length > 1;
+      let metalCol, formCol, qtyLabel;
+      if (isMulti) {
+        const metals = [...new Set(lines.map(l => l.metal))];
+        metalCol = metals.map(m => m === 'gold' ? '<span style="color:var(--gold)">Au</span>' : '<span style="color:var(--silver)">Ag</span>').join('+');
+        formCol = lines.length + ' items';
+        qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : fmtOz(l.qty)).join(', ');
+      } else {
+        const line = lines[0];
+        metalCol = line.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
+        formCol = getFormDisplayLabel(line.form, line.coinType);
+        qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : fmtOz(line.qty) + ' oz';
+      }
+
       const badges = (tx.form8300Flag ? '<span class="compliance-badge">8300</span>' : '') +
                      (tx.form1099BFlag ? '<span class="compliance-badge-1099b">1099-B</span>' : '');
       return `<tr>
         <td class="mono">${dateStr}</td>
-        <td>${tx.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>'}</td>
-        <td>${getFormDisplayLabel(tx.form, tx.coinType)}</td>
+        <td>${metalCol}</td>
+        <td>${formCol}</td>
         <td><span class="type-badge ${typeClass}">${getTypeLabel(tx.type)}</span></td>
         <td class="mono">${qtyLabel}</td>
         <td class="mono">${fmt(tx.total)}</td>
