@@ -1669,15 +1669,15 @@ tr.compliance-row-flagged {
       </div>
       <div class="form-group">
         <label class="form-label">Quantity</label>
-        <input class="form-input" type="number" id="editQty" step="any">
+        <input class="form-input" type="number" id="editQty" step="any" min="0.01" required>
       </div>
       <div class="form-group">
         <label class="form-label">Spot Price at Time</label>
-        <input class="form-input" type="number" id="editSpot" step="0.01">
+        <input class="form-input" type="number" id="editSpot" step="0.01" min="0.01" required>
       </div>
       <div class="form-group">
         <label class="form-label">Our Price / oz</label>
-        <input class="form-input" type="number" id="editPrice" step="0.01">
+        <input class="form-input" type="number" id="editPrice" step="0.01" min="0.01" required>
       </div>
       <div class="form-group">
         <label class="form-label">Payment Method</label>
@@ -2113,6 +2113,7 @@ $('logDealBtn').addEventListener('click', () => {
   if (qty <= 0) return;
 
   const deal = calcDealPrice(metal, form, calcTxType, coinType);
+  if (deal.spot <= 0) { alert('Spot price is not loaded or invalid.'); return; }
   let pricePerUnit, totalValue, profit;
 
   if (deal.isJunk) {
@@ -2127,6 +2128,8 @@ $('logDealBtn').addEventListener('click', () => {
     profit = calcTxType === 'sell' ? (pricePerUnit - deal.spot) * qty :
              (deal.spot - pricePerUnit) * qty;
   }
+
+  if (totalValue <= 0) { alert('Calculated total value is invalid.'); return; }
 
   const selectedCustomerIdInput = $('selectedCustomerId');
   const tx = {
@@ -2359,6 +2362,10 @@ $('editSaveBtn').addEventListener('click', () => {
   const price = parseFloat($('editPrice').value) || 0;
   const type = $('editType').value;
 
+  if (qty <= 0) { alert('Quantity must be greater than 0.'); return; }
+  if (spot <= 0) { alert('Spot price must be greater than 0.'); return; }
+  if (price <= 0) { alert('Price must be greater than 0.'); return; }
+
   const total = price * qty;
   const profit = type === 'sell' ? (price - spot) * qty : (spot - price) * qty;
 
@@ -2526,7 +2533,7 @@ function getInventory() {
 
   transactions.forEach(tx => {
     const metal = tx.metal;
-    const qty = tx.form === 'junk' ? tx.qty * 0.715 : tx.qty; // Convert junk FV to approx oz
+    const qty = tx.form === 'junk' ? tx.qty / settings.junkDivisor : tx.qty; // Convert junk FV to approx oz
     if (tx.type === 'buy') {
       inv[metal][tx.form] += qty;
     } else {
@@ -2795,26 +2802,26 @@ function loadSettings() {
 $('saveSettingsBtn').addEventListener('click', () => {
   settings = {
     shopName: $('settingShopName').value.trim() || 'My Bullion Shop',
-    sellPremCoins: parseFloat($('sellPremCoins').value) || 0,
-    sellPremBars: parseFloat($('sellPremBars').value) || 0,
-    sellPremScrap: parseFloat($('sellPremScrap').value) || 0,
-    buyDiscCoins: parseFloat($('buyDiscCoins').value) || 0,
-    buyDiscBars: parseFloat($('buyDiscBars').value) || 0,
-    buyDiscScrap: parseFloat($('buyDiscScrap').value) || 0,
-    whDiscCoins: parseFloat($('whDiscCoins').value) || 0,
-    whDiscBars: parseFloat($('whDiscBars').value) || 0,
-    whDiscScrap: parseFloat($('whDiscScrap').value) || 0,
+    sellPremCoins: Math.max(0, parseFloat($('sellPremCoins').value) || 0),
+    sellPremBars: Math.max(0, parseFloat($('sellPremBars').value) || 0),
+    sellPremScrap: Math.max(0, parseFloat($('sellPremScrap').value) || 0),
+    buyDiscCoins: Math.max(0, parseFloat($('buyDiscCoins').value) || 0),
+    buyDiscBars: Math.max(0, parseFloat($('buyDiscBars').value) || 0),
+    buyDiscScrap: Math.max(0, parseFloat($('buyDiscScrap').value) || 0),
+    whDiscCoins: Math.max(0, parseFloat($('whDiscCoins').value) || 0),
+    whDiscBars: Math.max(0, parseFloat($('whDiscBars').value) || 0),
+    whDiscScrap: Math.max(0, parseFloat($('whDiscScrap').value) || 0),
     coinAdjustments: {
-      eagles: parseFloat($('adjEagles').value) || 0,
-      maples: parseFloat($('adjMaples').value) || 0,
-      krugerrands: parseFloat($('adjKrugerrands').value) || 0,
-      britannias: parseFloat($('adjBritannias').value) || 0,
-      philharmonics: parseFloat($('adjPhilharmonics').value) || 0
+      eagles: Math.max(0, parseFloat($('adjEagles').value) || 0),
+      maples: Math.max(0, parseFloat($('adjMaples').value) || 0),
+      krugerrands: Math.max(0, parseFloat($('adjKrugerrands').value) || 0),
+      britannias: Math.max(0, parseFloat($('adjBritannias').value) || 0),
+      philharmonics: Math.max(0, parseFloat($('adjPhilharmonics').value) || 0)
     },
-    junkDivisor: parseFloat($('junkDivisor').value) || 1.3,
+    junkDivisor: parseFloat($('junkDivisor').value) > 0 ? parseFloat($('junkDivisor').value) : 1.3,
     junkMultOverride: parseFloat($('junkMultOverride').value) || null,
-    threshGold: parseFloat($('threshGold').value) || 10,
-    threshSilver: parseFloat($('threshSilver').value) || 500
+    threshGold: Math.max(0, parseFloat($('threshGold').value) || 10),
+    threshSilver: Math.max(0, parseFloat($('threshSilver').value) || 500)
   };
 
   Store.set('settings', settings);
