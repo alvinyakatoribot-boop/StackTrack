@@ -96,7 +96,7 @@ test.describe('Pre-1933 US Gold Coins', () => {
     }
   });
 
-  test('Transaction logs correctly with pre-1933 coin type and displays in tx table', async ({ page }) => {
+  test('Transaction logs correctly with qty stored as coin count', async ({ page }) => {
     await page.selectOption('#calcForm', 'coins');
     await page.selectOption('#calcCoinType', 'pre33_20');
     await page.fill('#calcQty', '5');
@@ -104,18 +104,20 @@ test.describe('Pre-1933 US Gold Coins', () => {
 
     await expect(page.locator('#dealLoggedMsg')).toHaveClass(/show/);
 
-    // Verify transaction in localStorage
+    // Verify transaction in localStorage — qty should be 5 (coins), not troy oz
     const tx = await page.evaluate(() => {
       const txs = JSON.parse(localStorage.getItem('st_transactions'));
       return txs[0];
     });
     expect(tx.coinType).toBe('pre33_20');
+    expect(tx.qty).toBe(5);
 
     // Close receipt modal if open, then navigate to transactions
     await page.locator('#receiptModal.open #receiptCloseBtn').click();
     await page.click('[data-page="transactions"]');
     const tableText = await page.locator('#txBody').textContent();
     expect(tableText).toContain('$20 Double Eagle');
+    expect(tableText).toContain('5 coins');
   });
 
   test('Pre-1933 coin type shows correct label in receipt', async ({ page }) => {
@@ -137,5 +139,75 @@ test.describe('Pre-1933 US Gold Coins', () => {
 
     const receiptText = await page.locator('#receiptContent').textContent();
     expect(receiptText).toContain('$5 Half Eagle');
+  });
+
+  test('Quantity label shows "Number of Coins" when pre-1933 selected', async ({ page }) => {
+    await page.selectOption('#calcForm', 'coins');
+    await page.selectOption('#calcCoinType', 'pre33_20');
+    await expect(page.locator('#qtyLabel')).toHaveText('Number of Coins');
+  });
+
+  test('Quantity label reverts to "Quantity (Troy Oz)" when switching to non-pre-1933 coin', async ({ page }) => {
+    await page.selectOption('#calcForm', 'coins');
+    await page.selectOption('#calcCoinType', 'pre33_10');
+    await expect(page.locator('#qtyLabel')).toHaveText('Number of Coins');
+
+    await page.selectOption('#calcCoinType', 'eagles');
+    await expect(page.locator('#qtyLabel')).toHaveText('Quantity (Troy Oz)');
+  });
+
+  test('Inventory correctly converts coin count to troy oz', async ({ page }) => {
+    // Seed a pre-1933 buy transaction: 10 x $20 Double Eagle
+    await seedAndReload(page, {
+      settings: BASE_SETTINGS,
+      transactions: [{
+        id: 'tx-inv-1', date: '2025-01-15T12:00:00Z', type: 'buy', metal: 'gold', form: 'coins',
+        coinType: 'pre33_20', qty: 10, spot: 2500, price: 2425, total: 23468.75, profit: 725,
+        payment: 'cash',
+      }],
+      customers: [],
+      contacts: [],
+    });
+
+    // Check inventory — 10 coins * 0.9675 = 9.675 troy oz
+    const totalGold = await page.evaluate(() => {
+      const { totalGold } = getInventory();
+      return totalGold;
+    });
+    expect(totalGold).toBeCloseTo(9.675, 3);
+  });
+
+  test('Price displayed as per-coin (not per-oz) in calculator', async ({ page }) => {
+    await page.selectOption('#calcForm', 'coins');
+    await page.selectOption('#calcCoinType', 'pre33_20');
+    await page.fill('#calcQty', '1');
+
+    // Check label says "/ coin" not "/ oz"
+    const priceLabel = await page.locator('#outPriceLabel').textContent();
+    expect(priceLabel).toContain('/ coin');
+
+    const marginText = await page.locator('#outMargin').textContent();
+    expect(marginText).toContain('/ coin');
+  });
+
+  test('Receipt shows "X coins" for pre-1933 transactions', async ({ page }) => {
+    await seedAndReload(page, {
+      settings: BASE_SETTINGS,
+      transactions: [{
+        id: 'tx-receipt-1', date: '2025-01-15T12:00:00Z', type: 'buy', metal: 'gold', form: 'coins',
+        coinType: 'pre33_20', qty: 5, spot: 2500, price: 2425, total: 11734.38, profit: 362.5,
+        payment: 'cash',
+      }],
+      customers: [],
+      contacts: [],
+    });
+
+    await page.click('[data-page="transactions"]');
+    await page.locator('#txBody tr').first().locator('button', { hasText: '🧾' }).click();
+    await expect(page.locator('#receiptModal')).toHaveClass(/open/);
+
+    const receiptText = await page.locator('#receiptContent').textContent();
+    expect(receiptText).toContain('5 coins');
+    expect(receiptText).not.toContain('troy oz');
   });
 });

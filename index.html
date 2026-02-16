@@ -2590,6 +2590,14 @@ const Store = {
   set(key, val) { localStorage.setItem('st_' + key, JSON.stringify(val)); }
 };
 
+// ─── Pre-1933 Gold Content (troy oz per coin) ───
+const PRE33_GOLD_CONTENT = {
+  pre33_20: 0.9675,
+  pre33_10: 0.48375,
+  pre33_5: 0.24187,
+  pre33_250: 0.12094
+};
+
 // ─── Default Settings ───
 const DEFAULT_SETTINGS = {
   shopName: 'My Bullion Shop',
@@ -2755,6 +2763,8 @@ function getFormLabel(form) {
   return { coins: 'Coins', bars: 'Bars', rounds: 'Rounds', junk: 'Junk Silver', scrap: 'Scrap' }[form] || form;
 }
 
+function isPre33(coinType) { return coinType && coinType.startsWith('pre33'); }
+
 function getCoinTypeLabel(coinType) {
   return { eagles: 'American Eagles', maples: 'Maple Leafs', krugerrands: 'Krugerrands', britannias: 'Britannias', philharmonics: 'Philharmonics', pre33_20: '$20 Double Eagle', pre33_10: '$10 Eagle', pre33_5: '$5 Half Eagle', pre33_250: '$2.50 Quarter Eagle' }[coinType] || '';
 }
@@ -2913,7 +2923,7 @@ let dealLines = [];
 function getLineDescription(line) {
   const metalLabel = line.metal === 'gold' ? 'Gold' : 'Silver';
   const formLabel = getFormDisplayLabel(line.form, line.coinType);
-  const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : fmtOz(line.qty) + ' oz';
+  const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' oz';
   return `${metalLabel} ${formLabel} — ${qtyLabel}`;
 }
 
@@ -2927,12 +2937,17 @@ function addLineToDeal() {
   const deal = calcDealPrice(metal, form, calcTxType, coinType);
   if (deal.spot <= 0) return;
 
+  const effectiveQty = isPre33(coinType) ? qty * (PRE33_GOLD_CONTENT[coinType] || 1) : qty;
   let pricePerUnit, totalValue, profit;
   if (deal.isJunk) {
     pricePerUnit = deal.pricePerUnit;
     totalValue = pricePerUnit * qty;
     const spotValue = (deal.spot / settings.junkDivisor) * qty;
     profit = calcTxType === 'sell' ? totalValue - spotValue : spotValue - totalValue;
+  } else if (isPre33(coinType)) {
+    pricePerUnit = deal.pricePerOz;
+    totalValue = pricePerUnit * effectiveQty;
+    profit = calcTxType === 'sell' ? (pricePerUnit - deal.spot) * effectiveQty : (deal.spot - pricePerUnit) * effectiveQty;
   } else {
     pricePerUnit = deal.pricePerOz;
     totalValue = pricePerUnit * qty;
@@ -3034,6 +3049,7 @@ $('calcCoinType').addEventListener('change', () => {
   } else if (calcForm.value !== 'junk') {
     calcMetal.disabled = false;
   }
+  updateQtyLabel();
   recalcDeal();
 });
 
@@ -3044,8 +3060,18 @@ calcPayment.addEventListener('change', recalcDeal);
 $('addLineBtn').addEventListener('click', addLineToDeal);
 
 function updateQtyLabel() {
-  $('qtyLabel').textContent = calcForm.value === 'junk' ? 'Face Value ($)' : 'Quantity (Troy Oz)';
-  calcQty.placeholder = calcForm.value === 'junk' ? '0.00' : '0.000';
+  const coinType = calcForm.value === 'coins' ? $('calcCoinType').value : null;
+  if (calcForm.value === 'junk') {
+    $('qtyLabel').textContent = 'Face Value ($)';
+    calcQty.placeholder = '0.00';
+  } else if (isPre33(coinType)) {
+    $('qtyLabel').textContent = 'Number of Coins';
+    calcQty.placeholder = '0';
+    calcQty.step = '1';
+  } else {
+    $('qtyLabel').textContent = 'Quantity (Troy Oz)';
+    calcQty.placeholder = '0.000';
+  }
 }
 
 function recalcDeal() {
@@ -3072,6 +3098,25 @@ function recalcDeal() {
                    calcTxType === 'buy' ? spotValue - totalValue :
                    spotValue - totalValue;
     $('outProfit').textContent = (profit >= 0 ? '+' : '-') + fmt(profit);
+  } else if (isPre33(coinType)) {
+    const goldContent = PRE33_GOLD_CONTENT[coinType] || 1;
+    const pricePerCoin = deal.pricePerOz * goldContent;
+    const spotPerCoin = deal.spot * goldContent;
+    $('outSpot').textContent = fmt(deal.spot) + '/oz';
+    $('outPriceLabel').textContent = (calcTxType === 'sell' ? 'Our Sell' : 'Our Buy') + ' Price / coin';
+    $('outPrice').textContent = fmt(pricePerCoin);
+
+    const marginPerCoin = Math.abs(pricePerCoin - spotPerCoin);
+    $('outMargin').textContent = fmt(marginPerCoin) + ' / coin';
+
+    const effectiveQty = qty * goldContent;
+    const totalValue = deal.pricePerOz * effectiveQty;
+    $('outTotal').textContent = fmt(totalValue);
+
+    const profit = calcTxType === 'sell' ? (deal.pricePerOz - deal.spot) * effectiveQty :
+                   calcTxType === 'buy' ? (deal.spot - deal.pricePerOz) * effectiveQty :
+                   (deal.spot - deal.pricePerOz) * effectiveQty;
+    $('outProfit').textContent = (profit >= 0 ? '+' : '-') + fmt(profit);
   } else {
     $('outSpot').textContent = fmt(deal.spot) + '/oz';
     $('outPriceLabel').textContent = (calcTxType === 'sell' ? 'Our Sell' : 'Our Buy') + ' Price / oz';
@@ -3094,7 +3139,8 @@ function recalcDeal() {
 
   // Form 8300 compliance warning (single + 24hr aggregation)
   const payment = calcPayment.value;
-  const currentLineTotal = deal.isJunk ? deal.pricePerUnit * qty : (deal.pricePerOz || 0) * qty;
+  const pre33Qty = isPre33(coinType) ? qty * (PRE33_GOLD_CONTENT[coinType] || 1) : qty;
+  const currentLineTotal = deal.isJunk ? deal.pricePerUnit * qty : (deal.pricePerOz || 0) * pre33Qty;
   const dealLinesTotal = dealLines.reduce((s, l) => s + l.total, 0);
   const totalValue = currentLineTotal + dealLinesTotal;
   const cashWarning = $('cashWarning');
@@ -3325,14 +3371,14 @@ function renderTransactions() {
       const metals = [...new Set(lines.map(l => l.metal))];
       metalCol = metals.map(m => m === 'gold' ? '<span style="color:var(--gold)">Au</span>' : '<span style="color:var(--silver)">Ag</span>').join('+');
       formCol = lines.length + ' items';
-      qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : fmtOz(l.qty)).join(', ');
+      qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : isPre33(l.coinType) ? l.qty + ' coins' : fmtOz(l.qty)).join(', ');
       spotCol = '—';
       priceCol = '—';
     } else {
       const line = lines[0];
       metalCol = line.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
       formCol = getFormDisplayLabel(line.form, line.coinType);
-      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : fmtOz(line.qty) + ' oz';
+      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' oz';
       spotCol = fmt(line.spot);
       priceCol = fmt(line.price);
     }
@@ -3623,14 +3669,14 @@ function generateReceipt(tx) {
     itemsHtml = `<div class="receipt-body">` +
       lines.map((line, i) => {
         const metalLabel = line.metal === 'gold' ? 'Gold' : 'Silver';
-        const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : fmtOz(line.qty) + ' oz';
+        const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' oz';
         return `
           <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px dotted #ddd;">
             <div style="font-weight:700;font-size:12px;color:#888;margin-bottom:4px;">Item ${i + 1}</div>
             <div class="receipt-row"><span class="receipt-label">Metal</span><span class="receipt-val">${metalLabel}</span></div>
             <div class="receipt-row"><span class="receipt-label">Form</span><span class="receipt-val">${getFormDisplayLabel(line.form, line.coinType)}</span></div>
             <div class="receipt-row"><span class="receipt-label">Quantity</span><span class="receipt-val">${qtyLabel}</span></div>
-            <div class="receipt-row"><span class="receipt-label">Price</span><span class="receipt-val">${line.form === 'junk' ? line.price.toFixed(2) + 'x face' : fmt(line.price) + ' / oz'}</span></div>
+            <div class="receipt-row"><span class="receipt-label">Price</span><span class="receipt-val">${line.form === 'junk' ? line.price.toFixed(2) + 'x face' : isPre33(line.coinType) ? fmt(line.price * (PRE33_GOLD_CONTENT[line.coinType] || 1)) + ' / coin' : fmt(line.price) + ' / oz'}</span></div>
             <div class="receipt-row"><span class="receipt-label">Subtotal</span><span class="receipt-val">${fmt(line.total)}</span></div>
           </div>`;
       }).join('') +
@@ -3639,14 +3685,14 @@ function generateReceipt(tx) {
   } else {
     const line = lines[0];
     const metalLabel = line.metal === 'gold' ? 'Gold' : 'Silver';
-    const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' Face Value' : fmtOz(line.qty) + ' troy oz';
+    const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' Face Value' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' troy oz';
     itemsHtml = `
     <div class="receipt-body">
       <div class="receipt-row"><span class="receipt-label">Metal</span><span class="receipt-val">${metalLabel}</span></div>
       <div class="receipt-row"><span class="receipt-label">Form</span><span class="receipt-val">${getFormDisplayLabel(line.form, line.coinType)}</span></div>
       <div class="receipt-row"><span class="receipt-label">Quantity</span><span class="receipt-val">${qtyLabel}</span></div>
       <div class="receipt-row"><span class="receipt-label">Spot Price</span><span class="receipt-val">${fmt(line.spot)} / oz</span></div>
-      <div class="receipt-row"><span class="receipt-label">${tx.type === 'sell' ? 'Sale' : 'Buy'} Price</span><span class="receipt-val">${line.form === 'junk' ? line.price.toFixed(2) + 'x face' : fmt(line.price) + ' / oz'}</span></div>
+      <div class="receipt-row"><span class="receipt-label">${tx.type === 'sell' ? 'Sale' : 'Buy'} Price</span><span class="receipt-val">${line.form === 'junk' ? line.price.toFixed(2) + 'x face' : isPre33(line.coinType) ? fmt(line.price * (PRE33_GOLD_CONTENT[line.coinType] || 1)) + ' / coin' : fmt(line.price) + ' / oz'}</span></div>
       <div class="receipt-row"><span class="receipt-label">Payment Method</span><span class="receipt-val">${paymentLabel}</span></div>
     </div>`;
   }
@@ -3721,7 +3767,9 @@ function getInventory() {
   transactions.forEach(tx => {
     getTxLines(tx).forEach(line => {
       const metal = line.metal;
-      const qty = line.form === 'junk' ? line.qty / settings.junkDivisor : line.qty;
+      const qty = line.form === 'junk' ? line.qty / settings.junkDivisor
+                : isPre33(line.coinType) ? line.qty * (PRE33_GOLD_CONTENT[line.coinType] || 1)
+                : line.qty;
       if (tx.type === 'buy') {
         inv[metal][line.form] += qty;
       } else {
@@ -4452,11 +4500,11 @@ function updateDashboard() {
     if (isMulti) {
       const metals = [...new Set(lines.map(l => l.metal))];
       metalCol = metals.map(m => m === 'gold' ? '<span style="color:var(--gold)">Au</span>' : '<span style="color:var(--silver)">Ag</span>').join('+');
-      qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : fmtOz(l.qty)).join(', ');
+      qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : isPre33(l.coinType) ? l.qty + ' coins' : fmtOz(l.qty)).join(', ');
     } else {
       const line = lines[0];
       metalCol = line.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
-      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : fmtOz(line.qty) + ' oz';
+      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' oz';
     }
 
     const custName = getCustomerName(tx.customerId);
@@ -4551,12 +4599,12 @@ window.openCustomerProfile = function(customerId) {
         const metals = [...new Set(lines.map(l => l.metal))];
         metalCol = metals.map(m => m === 'gold' ? '<span style="color:var(--gold)">Au</span>' : '<span style="color:var(--silver)">Ag</span>').join('+');
         formCol = lines.length + ' items';
-        qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : fmtOz(l.qty)).join(', ');
+        qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : isPre33(l.coinType) ? l.qty + ' coins' : fmtOz(l.qty)).join(', ');
       } else {
         const line = lines[0];
         metalCol = line.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
         formCol = getFormDisplayLabel(line.form, line.coinType);
-        qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : fmtOz(line.qty) + ' oz';
+        qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' oz';
       }
 
       const badges = (tx.form8300Flag ? '<span class="compliance-badge">8300</span>' : '') +
