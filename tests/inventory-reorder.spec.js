@@ -6,7 +6,8 @@ const BASE_SETTINGS = {
   buyDiscCoins: 3, buyDiscBars: 5, buyDiscScrap: 8,
   whDiscCoins: 1, whDiscBars: 2, whDiscScrap: 3,
   coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0 },
-  junkDivisor: 1.3, junkMultOverride: null,
+  junkMultiplier: 0.715, junkMultOverride: null,
+  sellPremJunk: 7, buyDiscJunk: 3, whDiscJunk: 1,
   threshGold: 10, threshSilver: 500,
   reorderPoints: {
     goldCoins: 0, goldBars: 0, goldRounds: 0, goldScrap: 0,
@@ -257,7 +258,7 @@ test.describe('Inventory Reorder Alerts', () => {
       ...BASE_SETTINGS,
       reorderPoints: { ...BASE_SETTINGS.reorderPoints, silverJunk: 100 }
     };
-    // junk qty is divided by junkDivisor (1.3) -> 10/1.3 = ~7.69 oz
+    // junk qty * junkMultiplier (0.715) -> 10 * 0.715 = 7.15 oz
     const transactions = [makeTx({ metal: 'silver', form: 'junk', qty: 10 })];
     await seedAndReload(page, { settings, transactions });
     await goToInventory(page);

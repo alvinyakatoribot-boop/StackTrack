@@ -6,7 +6,8 @@ const BASE_SETTINGS = {
   buyDiscCoins: 3, buyDiscBars: 5, buyDiscScrap: 8,
   whDiscCoins: 1, whDiscBars: 2, whDiscScrap: 3,
   coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0 },
-  junkDivisor: 1.3, junkMultOverride: null,
+  junkMultiplier: 0.715, junkMultOverride: null,
+  sellPremJunk: 7, buyDiscJunk: 3, whDiscJunk: 1,
   threshGold: 10, threshSilver: 500,
 };
 
@@ -177,12 +178,12 @@ test.describe('Dashboard — Inventory Snapshot', () => {
   });
 
   test('shows correct junk silver oz and spot value', async ({ page }) => {
-    // Junk: 26 FV / 1.3 divisor = 20 oz
+    // Junk: 26 FV * 0.715 multiplier = 18.59 oz
     const ozText = await page.locator('#dashJunkOz').textContent();
-    expect(ozText).toContain('20.000');
+    expect(ozText).toContain('18.590');
     const valText = await page.locator('#dashJunkVal').textContent();
-    // 20 * 32 = $640
-    expect(valText).toContain('640');
+    // 18.59 * 32 = $594.88
+    expect(valText).toContain('594');
   });
 });
 

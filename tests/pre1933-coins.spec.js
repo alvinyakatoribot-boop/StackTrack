@@ -6,7 +6,8 @@ const BASE_SETTINGS = {
   buyDiscCoins: 3, buyDiscBars: 5, buyDiscScrap: 8,
   whDiscCoins: 1, whDiscBars: 2, whDiscScrap: 3,
   coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0, pre33: 0 },
-  junkDivisor: 1.3, junkMultOverride: null,
+  junkMultiplier: 0.715, junkMultOverride: null,
+  sellPremJunk: 7, buyDiscJunk: 3, whDiscJunk: 1,
   threshGold: 10, threshSilver: 500,
 };
 
