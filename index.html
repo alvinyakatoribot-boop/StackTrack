@@ -1987,6 +1987,14 @@ tr.compliance-row-flagged.compliance-row-1099b {
           <span class="output-label">Total Transaction Value</span>
           <span class="output-value large" id="outTotal">$0.00</span>
         </div>
+        <div class="output-row" id="outTaxRow" style="display:none;">
+          <span class="output-label">Sales Tax (<span id="outTaxRate">0</span>%)</span>
+          <span class="output-value" id="outTax">$0.00</span>
+        </div>
+        <div class="output-row" id="outGrandTotalRow" style="display:none;">
+          <span class="output-label">Total with Tax</span>
+          <span class="output-value large" id="outGrandTotal">$0.00</span>
+        </div>
         <div class="output-row">
           <span class="output-label">Total Profit on Deal</span>
           <span class="output-value profit-highlight" id="outProfit">$0.00</span>
@@ -2221,6 +2229,11 @@ tr.compliance-row-flagged.compliance-row-1099b {
         <div class="pnl-card-label">Wholesale Volume</div>
         <div class="pnl-card-value" id="pnlWholesale">$0.00</div>
         <div class="pnl-card-sub" id="pnlWholesaleCount">0 transactions</div>
+      </div>
+      <div class="pnl-card" id="pnlTaxCard" style="display:none;">
+        <div class="pnl-card-label">Sales Tax Collected</div>
+        <div class="pnl-card-value" id="pnlTaxCollected" style="color:var(--red)">$0.00</div>
+        <div class="pnl-card-sub">Liability — not revenue</div>
       </div>
     </div>
     <div class="card">
@@ -2470,6 +2483,29 @@ tr.compliance-row-flagged.compliance-row-1099b {
             <input class="form-input" type="number" id="reorderSilverScrap" step="1" value="0" min="0">
           </div>
         </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Sales Tax</div>
+        <div class="settings-grid">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label" style="display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" id="settingTaxEnabled">
+              <span id="taxEnabledLabel">Enable Sales Tax Collection</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="form-label">State</label>
+            <select class="form-select" id="settingTaxState">
+              <option value="">Select state...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rate Override (%)</label>
+            <input class="form-input" type="number" id="settingTaxRateOverride" step="0.01" min="0" max="20" placeholder="Use state default">
+          </div>
+        </div>
+        <div id="taxStateInfo" style="font-size:12px;color:var(--text-muted);margin-top:4px;"></div>
       </div>
 
       <div class="settings-section">
@@ -2787,6 +2823,47 @@ const WEIGHT_UNITS = {
   tlb: { label: 'Troy Lb',     toTroyOz: 12 },
 };
 
+// ─── State Tax Configuration ───
+const STATE_TAX_CONFIG = {
+  AL: { rate: 0, type: 'exempt' }, AK: { rate: 0, type: 'none' }, AZ: { rate: 0, type: 'exempt' },
+  AR: { rate: 0, type: 'exempt' }, CA: { rate: 7.25, type: 'threshold', threshold: 2000 },
+  CO: { rate: 0, type: 'exempt' }, CT: { rate: 6.35, type: 'threshold', threshold: 1000 },
+  DE: { rate: 0, type: 'none' }, FL: { rate: 6, type: 'threshold', threshold: 500 },
+  GA: { rate: 0, type: 'exempt' }, HI: { rate: 4, type: 'always' },
+  ID: { rate: 0, type: 'exempt' }, IL: { rate: 0, type: 'exempt' },
+  IN: { rate: 0, type: 'exempt' }, IA: { rate: 0, type: 'exempt' },
+  KS: { rate: 0, type: 'exempt' }, KY: { rate: 0, type: 'exempt' },
+  LA: { rate: 0, type: 'exempt' }, ME: { rate: 5.5, type: 'always' },
+  MD: { rate: 6, type: 'always' }, MA: { rate: 6.25, type: 'threshold', threshold: 1000 },
+  MI: { rate: 0, type: 'exempt' }, MN: { rate: 0, type: 'exempt' },
+  MS: { rate: 0, type: 'exempt' }, MO: { rate: 0, type: 'exempt' },
+  MT: { rate: 0, type: 'none' }, NE: { rate: 0, type: 'exempt' },
+  NV: { rate: 0, type: 'exempt' }, NH: { rate: 0, type: 'none' },
+  NJ: { rate: 0, type: 'exempt' }, NM: { rate: 5.125, type: 'always' },
+  NY: { rate: 4, type: 'threshold', threshold: 1000 }, NC: { rate: 0, type: 'exempt' },
+  ND: { rate: 0, type: 'exempt' }, OH: { rate: 0, type: 'exempt' },
+  OK: { rate: 0, type: 'exempt' }, OR: { rate: 0, type: 'none' },
+  PA: { rate: 0, type: 'exempt' }, RI: { rate: 0, type: 'exempt' },
+  SC: { rate: 0, type: 'exempt' }, SD: { rate: 0, type: 'exempt' },
+  TN: { rate: 0, type: 'exempt' }, TX: { rate: 0, type: 'exempt' },
+  UT: { rate: 0, type: 'exempt' }, VT: { rate: 6, type: 'always' },
+  VA: { rate: 5.3, type: 'threshold', threshold: 1000 }, WA: { rate: 6.5, type: 'always' },
+  WV: { rate: 0, type: 'exempt' }, WI: { rate: 0, type: 'exempt' },
+  WY: { rate: 0, type: 'exempt' }, DC: { rate: 6, type: 'always' }
+};
+
+function calculateSalesTax(subtotal, txType) {
+  if (txType !== 'sell' || !settings.taxEnabled) return { taxRate: 0, taxAmount: 0 };
+  const cfg = STATE_TAX_CONFIG[settings.taxState];
+  if (!cfg) return { taxRate: 0, taxAmount: 0 };
+  let rate = settings.taxRateOverride != null ? settings.taxRateOverride : cfg.rate;
+  if (settings.taxRateOverride == null) {
+    if (cfg.type === 'none' || cfg.type === 'exempt') rate = 0;
+    else if (cfg.type === 'threshold' && subtotal > cfg.threshold) rate = 0;
+  }
+  return { taxRate: rate, taxAmount: Math.round(subtotal * rate / 100 * 100) / 100 };
+}
+
 // ─── Default Settings ───
 const DEFAULT_SETTINGS = {
   shopName: 'My Bullion Shop',
@@ -2801,7 +2878,10 @@ const DEFAULT_SETTINGS = {
     goldCoins: 0, goldBars: 0, goldRounds: 0, goldScrap: 0,
     silverCoins: 0, silverBars: 0, silverRounds: 0, silverJunk: 0, silverScrap: 0
   },
-  premiumModes: {}
+  premiumModes: {},
+  taxEnabled: false,
+  taxState: '',
+  taxRateOverride: null
 };
 
 let settings = { ...DEFAULT_SETTINGS, ...Store.get('settings', {}) };
@@ -3370,7 +3450,12 @@ function renderDealLines() {
 
   const combinedTotal = dealLines.reduce((s, l) => s + l.total, 0);
   const combinedProfit = dealLines.reduce((s, l) => s + l.profit, 0);
-  totalEl.textContent = fmt(combinedTotal);
+  const { taxAmount: dlTax } = calculateSalesTax(combinedTotal, calcTxType);
+  if (dlTax > 0) {
+    totalEl.textContent = fmt(combinedTotal) + ' + ' + fmt(dlTax) + ' tax = ' + fmt(combinedTotal + dlTax);
+  } else {
+    totalEl.textContent = fmt(combinedTotal);
+  }
   profitEl.textContent = (combinedProfit >= 0 ? '+' : '-') + fmt(combinedProfit);
   profitEl.className = 'profit-value ' + (combinedProfit >= 0 ? 'green' : 'red');
 }
@@ -3559,6 +3644,20 @@ function recalcDeal() {
     $('outProfit').textContent = (profit >= 0 ? '+' : '-') + fmt(profit);
   }
 
+  // Tax preview
+  const previewSubtotal = (deal.isJunk ? deal.pricePerUnit * qty : (deal.pricePerOz || 0) * (form === 'scrap' ? getScrapFineOz(qty) : (['bars', 'rounds', 'coins'].includes(form) ? getWeightInTroyOz(qty) : qty))) + dealLines.reduce((s, l) => s + l.total, 0);
+  const { taxRate: prevTaxRate, taxAmount: prevTaxAmount } = calculateSalesTax(previewSubtotal, calcTxType);
+  if (prevTaxAmount > 0) {
+    $('outTaxRow').style.display = '';
+    $('outTaxRate').textContent = prevTaxRate;
+    $('outTax').textContent = fmt(prevTaxAmount);
+    $('outGrandTotalRow').style.display = '';
+    $('outGrandTotal').textContent = fmt(previewSubtotal + prevTaxAmount);
+  } else {
+    $('outTaxRow').style.display = 'none';
+    $('outGrandTotalRow').style.display = 'none';
+  }
+
   $('addLineBtn').disabled = qty <= 0;
   $('logDealBtn').disabled = dealLines.length === 0 && qty <= 0;
 
@@ -3640,12 +3739,17 @@ $('logDealBtn').addEventListener('click', () => {
   // Check spot price on first line
   if (dealLines[0].spot <= 0) { alert('Spot price is not loaded or invalid.'); return; }
 
+  const { taxRate, taxAmount } = calculateSalesTax(combinedTotal, calcTxType);
+
   const selectedCustomerIdInput = $('selectedCustomerId');
   const tx = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     date: new Date().toISOString(),
     type: calcTxType,
-    total: combinedTotal,
+    subtotal: combinedTotal,
+    taxRate,
+    taxAmount,
+    total: combinedTotal + taxAmount,
     payment: calcPayment.value,
     profit: combinedProfit,
     customerId: selectedCustomerIdInput.value || undefined,
@@ -3878,7 +3982,7 @@ $('exportCsvBtn').addEventListener('click', () => {
   const list = getFilteredTransactions();
   if (list.length === 0) return;
 
-  const headers = ['Deal ID', 'Date', 'Metal', 'Form', 'Coin Type', 'Type', 'Customer', 'Quantity', 'Spot Price', 'Our Price', 'Total', 'Payment', 'Profit', 'Form 8300', '1099-B', 'Notes'];
+  const headers = ['Deal ID', 'Date', 'Metal', 'Form', 'Coin Type', 'Type', 'Customer', 'Quantity', 'Spot Price', 'Our Price', 'Total', 'Tax', 'Payment', 'Profit', 'Form 8300', '1099-B', 'Notes'];
   const rows = [];
   list.forEach(tx => {
     const lines = getTxLines(tx);
@@ -3889,7 +3993,7 @@ $('exportCsvBtn').addEventListener('click', () => {
         line.metal, getFormLabel(line.form), line.coinType ? getCoinTypeLabel(line.coinType) : '',
         getTypeLabel(tx.type),
         getCustomerName(tx.customerId),
-        line.qty, line.spot, line.price, line.total, tx.payment, line.profit,
+        line.qty, line.spot, line.price, line.total, tx.taxAmount || 0, tx.payment, line.profit,
         tx.form8300Flag ? (tx.form8300Reviewed ? 'Reviewed' : 'Flagged') : '',
         tx.form1099BFlag ? (tx.form1099BFiled ? 'Filed' : 'Flagged') : '',
         tx.notes || ''
@@ -4039,6 +4143,7 @@ $('editSaveBtn').addEventListener('click', () => {
 
   const total = price * qty;
   const profit = type === 'sell' ? (price - spot) * qty : (spot - price) * qty;
+  const { taxRate: editTaxRate, taxAmount: editTaxAmount } = calculateSalesTax(total, type);
 
   const editedCoinType = editedForm === 'coins' ? ($('editCoinType').value || undefined) : undefined;
 
@@ -4093,10 +4198,14 @@ $('editSaveBtn').addEventListener('click', () => {
       if (prior24h + dealTotal >= 10000) editedFlag = true;
     }
 
+    const { taxRate: mlTaxRate, taxAmount: mlTaxAmount } = calculateSalesTax(dealTotal, type);
     transactions[idx] = {
       ...transactions[idx],
       type,
-      total: dealTotal,
+      subtotal: dealTotal,
+      taxRate: mlTaxRate,
+      taxAmount: mlTaxAmount,
+      total: dealTotal + mlTaxAmount,
       payment: editedPayment,
       profit: dealProfit,
       customerId: editedCustomerId,
@@ -4114,7 +4223,11 @@ $('editSaveBtn').addEventListener('click', () => {
       form: editedForm,
       coinType: editedCoinType,
       type,
-      qty, spot, price, total,
+      qty, spot, price,
+      subtotal: total,
+      taxRate: editTaxRate,
+      taxAmount: editTaxAmount,
+      total: total + editTaxAmount,
       payment: editedPayment,
       profit,
       customerId: editedCustomerId,
@@ -4240,10 +4353,20 @@ function generateReceipt(tx) {
       <span style="background:#f0f0f0;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px;">${typeLabel}</span>
     </div>
     ${itemsHtml}
+    ${(tx.taxAmount || 0) > 0 ? `
+    <div class="receipt-total" style="border-bottom:none;padding-bottom:0;margin-bottom:0;">
+      <div class="receipt-total-label">Subtotal</div>
+      <div class="receipt-total-value" style="font-size:20px;">${fmt(tx.subtotal != null ? tx.subtotal : tx.total)}</div>
+    </div>
+    <div style="text-align:center;margin-bottom:4px;font-size:13px;color:#666;">Sales Tax (${tx.taxRate}%) — ${fmt(tx.taxAmount)}</div>
     <div class="receipt-total">
       <div class="receipt-total-label">Total Amount</div>
       <div class="receipt-total-value">${fmt(tx.total)}${tx.form8300Flag ? '<span class="compliance-indicator"></span>' : ''}</div>
-    </div>
+    </div>` : `
+    <div class="receipt-total">
+      <div class="receipt-total-label">Total Amount</div>
+      <div class="receipt-total-value">${fmt(tx.total)}${tx.form8300Flag ? '<span class="compliance-indicator"></span>' : ''}</div>
+    </div>`}
     ${tx.form8300Flag ? `<div style="background:#fff3e0;border:1px solid #FFB300;border-radius:4px;padding:8px 10px;font-size:11px;color:#8d6e00;text-align:center;margin-bottom:12px;font-weight:600;">NOTICE: This cash transaction meets the $10,000 threshold for IRS Form 8300 reporting.</div>` : ''}
     ${tx.form1099BFlag ? `<div style="background:#e3f2fd;border:1px solid #2196F3;border-radius:4px;padding:8px 10px;font-size:11px;color:#1565C0;text-align:center;margin-bottom:12px;font-weight:600;">NOTICE: This buy-back transaction is reportable under IRS Form 1099-B. A W-9 is required from the seller.</div>` : ''}
     <div class="receipt-footer">
@@ -4546,7 +4669,8 @@ function updatePnlPage() {
   const wholesale = periodTx.filter(t => t.type === 'wholesale');
 
   const totalBought = buys.reduce((s, t) => s + t.total, 0);
-  const totalSold = sells.reduce((s, t) => s + t.total, 0);
+  const totalSold = sells.reduce((s, t) => s + (t.subtotal != null ? t.subtotal : t.total), 0);
+  const totalTaxCollected = sells.reduce((s, t) => s + (t.taxAmount || 0), 0);
   const totalWholesale = wholesale.reduce((s, t) => s + t.total, 0);
   const totalProfit = periodTx.reduce((s, t) => s + t.profit, 0);
 
@@ -4575,10 +4699,18 @@ function updatePnlPage() {
   $('pnlWholesale').textContent = fmt(totalWholesale);
   $('pnlWholesaleCount').textContent = wholesale.length + ' transactions';
 
+  // Tax collected
+  if (totalTaxCollected > 0) {
+    $('pnlTaxCard').style.display = '';
+    $('pnlTaxCollected').textContent = fmt(totalTaxCollected);
+  } else {
+    $('pnlTaxCard').style.display = 'none';
+  }
+
   // Capital position
-  // Cash/wire in = sells + wholesale (money coming in)
+  // Cash/wire in = sells + wholesale (money coming in) + tax collected
   // Cash/wire out = buys (money going out)
-  const cashIn = totalSold + totalWholesale;
+  const cashIn = totalSold + totalWholesale + totalTaxCollected;
   const cashOut = totalBought;
   const invValue = (totalGold * spotPrices.gold) + (totalSilver * spotPrices.silver);
 
@@ -4779,6 +4911,11 @@ function loadSettings() {
   $('reorderSilverJunk').value = rp.silverJunk || 0;
   $('reorderSilverScrap').value = rp.silverScrap || 0;
   $('shopNameDisplay').textContent = settings.shopName;
+  // Tax settings
+  $('settingTaxEnabled').checked = !!settings.taxEnabled;
+  $('settingTaxState').value = settings.taxState || '';
+  $('settingTaxRateOverride').value = settings.taxRateOverride != null ? settings.taxRateOverride : '';
+  updateTaxStateInfo();
   // Update premium mode toggles
   document.querySelectorAll('.prem-mode-toggle').forEach(btn => {
     updatePremToggleUI(btn.dataset.field);
@@ -4831,7 +4968,10 @@ $('saveSettingsBtn').addEventListener('click', () => {
         }
       });
       return modes;
-    })()
+    })(),
+    taxEnabled: $('settingTaxEnabled').checked,
+    taxState: $('settingTaxState').value,
+    taxRateOverride: $('settingTaxRateOverride').value !== '' ? parseFloat($('settingTaxRateOverride').value) : null
   };
 
   Store.set('settings', settings);
@@ -4843,6 +4983,32 @@ $('saveSettingsBtn').addEventListener('click', () => {
   confirm.classList.add('show');
   setTimeout(() => confirm.classList.remove('show'), 2000);
 });
+
+// ─── Sales Tax Settings ───
+// Populate state dropdown
+(() => {
+  const sel = $('settingTaxState');
+  Object.keys(STATE_TAX_CONFIG).sort().forEach(code => {
+    const opt = document.createElement('option');
+    opt.value = code;
+    opt.textContent = code;
+    sel.appendChild(opt);
+  });
+})();
+
+$('settingTaxState').addEventListener('change', updateTaxStateInfo);
+
+function updateTaxStateInfo() {
+  const info = $('taxStateInfo');
+  const code = $('settingTaxState').value;
+  if (!code) { info.textContent = ''; return; }
+  const cfg = STATE_TAX_CONFIG[code];
+  if (!cfg) { info.textContent = ''; return; }
+  if (cfg.type === 'none') info.textContent = code + ' has no sales tax.';
+  else if (cfg.type === 'exempt') info.textContent = code + ' exempts bullion/precious metals from sales tax.';
+  else if (cfg.type === 'always') info.textContent = code + ' taxes bullion at ' + cfg.rate + '%.';
+  else if (cfg.type === 'threshold') info.textContent = code + ' taxes bullion at ' + cfg.rate + '% on transactions of $' + cfg.threshold.toLocaleString() + ' or less. Transactions above $' + cfg.threshold.toLocaleString() + ' are exempt.';
+}
 
 // ─── Data Export/Import ───
 $('exportDataBtn').addEventListener('click', () => {
