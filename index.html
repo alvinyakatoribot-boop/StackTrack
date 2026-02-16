@@ -1851,6 +1851,14 @@ tr.compliance-row-flagged.compliance-row-1099b {
               <option value="pre33_250">$2.50 Quarter Eagle</option>
             </select>
           </div>
+          <div class="form-group" id="weightUnitGroup" style="display:none">
+            <label class="form-label">Weight Unit</label>
+            <select class="form-select" id="calcWeightUnit">
+              <option value="ozt">Troy Oz</option>
+              <option value="g">Grams</option>
+              <option value="tlb">Troy Lb</option>
+            </select>
+          </div>
           <div class="form-group" id="scrapPurityGroup" style="display:none">
             <label class="form-label">Purity</label>
             <select class="form-select" id="scrapPurity"></select>
@@ -1861,6 +1869,7 @@ tr.compliance-row-flagged.compliance-row-1099b {
               <option value="g">Grams</option>
               <option value="dwt">Pennyweight (dwt)</option>
               <option value="ozt">Troy Oz</option>
+              <option value="tlb">Troy Lb</option>
             </select>
           </div>
           <div class="form-group full-width">
@@ -2417,6 +2426,15 @@ tr.compliance-row-flagged.compliance-row-1099b {
           <option value="g">Grams</option>
           <option value="dwt">Pennyweight (dwt)</option>
           <option value="ozt">Troy Oz</option>
+          <option value="tlb">Troy Lb</option>
+        </select>
+      </div>
+      <div class="form-group" id="editWeightUnitGroup" style="display:none;">
+        <label class="form-label">Weight Unit</label>
+        <select class="form-select" id="editWeightUnit">
+          <option value="ozt">Troy Oz</option>
+          <option value="g">Grams</option>
+          <option value="tlb">Troy Lb</option>
         </select>
       </div>
       <div class="form-group">
@@ -2656,6 +2674,7 @@ const WEIGHT_UNITS = {
   g:   { label: 'Grams',       toTroyOz: 1 / 31.1035 },
   dwt: { label: 'Pennyweight', toTroyOz: 1 / 20 },
   ozt: { label: 'Troy Oz',     toTroyOz: 1 },
+  tlb: { label: 'Troy Lb',     toTroyOz: 12 },
 };
 
 // ─── Default Settings ───
@@ -2860,6 +2879,11 @@ function populateScrapPurities(metal) {
   else if (metal === 'silver') sel.value = '925';
 }
 
+function getWeightInTroyOz(rawQty) {
+  const unit = $('calcWeightUnit').value;
+  return rawQty * WEIGHT_UNITS[unit].toTroyOz;
+}
+
 function getScrapFineOz(rawQty) {
   const unit = $('scrapWeightUnit').value;
   const purityKey = $('scrapPurity').value;
@@ -2873,6 +2897,7 @@ function getTxLines(tx) {
   if (tx.lines && tx.lines.length > 0) return tx.lines;
   const line = { metal: tx.metal, form: tx.form, coinType: tx.coinType, qty: tx.qty, spot: tx.spot, price: tx.price, total: tx.total, profit: tx.profit };
   if (tx.scrapPurity) { line.scrapPurity = tx.scrapPurity; line.scrapWeightUnit = tx.scrapWeightUnit; line.rawQty = tx.rawQty; }
+  if (tx.weightUnit) { line.weightUnit = tx.weightUnit; line.rawQty = tx.rawQty; }
   return [line];
 }
 
@@ -3022,7 +3047,17 @@ function getLineDescription(line) {
     return `${metalLabel} Scrap (${purityLabel}) — ${line.rawQty}${line.scrapWeightUnit === 'g' ? 'g' : line.scrapWeightUnit === 'dwt' ? ' dwt' : ' ozt'} → ${fmtOz(line.qty)} fine oz`;
   }
   const formLabel = getFormDisplayLabel(line.form, line.coinType);
-  const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' oz';
+  let qtyLabel;
+  if (line.form === 'junk') {
+    qtyLabel = '$' + fmtOz(line.qty) + ' FV';
+  } else if (isPre33(line.coinType)) {
+    qtyLabel = line.qty + ' coins';
+  } else if (line.weightUnit && line.weightUnit !== 'ozt') {
+    const unitSuffix = line.weightUnit === 'g' ? 'g' : ' ' + WEIGHT_UNITS[line.weightUnit].label;
+    qtyLabel = line.rawQty + unitSuffix + ' (' + fmtOz(line.qty) + ' oz)';
+  } else {
+    qtyLabel = fmtOz(line.qty) + ' oz';
+  }
   return `${metalLabel} ${formLabel} — ${qtyLabel}`;
 }
 
@@ -3044,8 +3079,13 @@ function addLineToDeal() {
     effectiveQty = rawQty * (PRE33_GOLD_CONTENT[coinType] || 1);
     qty = rawQty;
   } else {
-    effectiveQty = rawQty;
-    qty = rawQty;
+    const unit = $('calcWeightUnit').value;
+    if (unit !== 'ozt' && ['bars', 'rounds', 'coins'].includes(form)) {
+      effectiveQty = rawQty * WEIGHT_UNITS[unit].toTroyOz;
+    } else {
+      effectiveQty = rawQty;
+    }
+    qty = effectiveQty;
   }
 
   let pricePerUnit, totalValue, profit;
@@ -3079,6 +3119,12 @@ function addLineToDeal() {
     line.scrapPurity = $('scrapPurity').value;
     line.scrapWeightUnit = $('scrapWeightUnit').value;
     line.rawQty = rawQty;
+  } else if (['bars', 'rounds', 'coins'].includes(form)) {
+    const unit = $('calcWeightUnit').value;
+    if (unit !== 'ozt') {
+      line.weightUnit = unit;
+      line.rawQty = rawQty;
+    }
   }
 
   dealLines.push(line);
@@ -3159,11 +3205,21 @@ calcForm.addEventListener('change', () => {
   if (calcForm.value === 'scrap') {
     $('scrapPurityGroup').style.display = '';
     $('scrapWeightUnitGroup').style.display = '';
+    $('weightUnitGroup').style.display = 'none';
     populateScrapPurities(calcMetal.value);
   } else {
     $('scrapPurityGroup').style.display = 'none';
     $('scrapWeightUnitGroup').style.display = 'none';
   }
+  // Show weight unit for bars, rounds, coins (non-pre33); hide for junk, scrap
+  if (['bars', 'rounds'].includes(calcForm.value)) {
+    $('weightUnitGroup').style.display = '';
+  } else if (calcForm.value === 'coins' && !$('calcCoinType').value.startsWith('pre33')) {
+    $('weightUnitGroup').style.display = '';
+  } else if (calcForm.value !== 'scrap') {
+    $('weightUnitGroup').style.display = 'none';
+  }
+  $('calcWeightUnit').value = 'ozt';
   updateQtyLabel();
   recalcDeal();
 });
@@ -3172,8 +3228,11 @@ $('calcCoinType').addEventListener('change', () => {
   if ($('calcCoinType').value.startsWith('pre33')) {
     calcMetal.value = 'gold';
     calcMetal.disabled = true;
+    $('weightUnitGroup').style.display = 'none';
+    $('calcWeightUnit').value = 'ozt';
   } else if (calcForm.value !== 'junk') {
     calcMetal.disabled = false;
+    $('weightUnitGroup').style.display = '';
   }
   updateQtyLabel();
   recalcDeal();
@@ -3188,6 +3247,7 @@ calcMetal.addEventListener('change', () => {
 calcQty.addEventListener('input', () => { updateQtyLabel(); recalcDeal(); });
 $('scrapPurity').addEventListener('change', () => { updateQtyLabel(); recalcDeal(); });
 $('scrapWeightUnit').addEventListener('change', () => { updateQtyLabel(); recalcDeal(); });
+$('calcWeightUnit').addEventListener('change', () => { updateQtyLabel(); recalcDeal(); });
 calcPayment.addEventListener('change', recalcDeal);
 
 $('addLineBtn').addEventListener('click', addLineToDeal);
@@ -3217,8 +3277,21 @@ function updateQtyLabel() {
     calcQty.placeholder = '0';
     calcQty.step = '1';
   } else {
-    $('qtyLabel').textContent = 'Quantity (Troy Oz)';
-    calcQty.placeholder = '0.000';
+    const unit = $('calcWeightUnit').value;
+    if (unit !== 'ozt') {
+      const qty = parseFloat(calcQty.value) || 0;
+      const unitLabel = WEIGHT_UNITS[unit].label;
+      if (qty > 0) {
+        const troyOz = getWeightInTroyOz(qty);
+        $('qtyLabel').textContent = 'Weight (' + fmtOz(troyOz) + ' toz)';
+      } else {
+        $('qtyLabel').textContent = 'Weight (' + unitLabel + ')';
+      }
+      calcQty.placeholder = unit === 'g' ? '0.0' : '0.000';
+    } else {
+      $('qtyLabel').textContent = 'Quantity (Troy Oz)';
+      calcQty.placeholder = '0.000';
+    }
   }
 }
 
@@ -3266,7 +3339,7 @@ function recalcDeal() {
                    (deal.spot - deal.pricePerOz) * effectiveQty;
     $('outProfit').textContent = (profit >= 0 ? '+' : '-') + fmt(profit);
   } else {
-    const displayQty = form === 'scrap' ? getScrapFineOz(qty) : qty;
+    const displayQty = form === 'scrap' ? getScrapFineOz(qty) : (['bars', 'rounds', 'coins'].includes(form) ? getWeightInTroyOz(qty) : qty);
     $('outSpot').textContent = fmt(deal.spot) + '/oz';
     $('outPriceLabel').textContent = (calcTxType === 'sell' ? 'Our Sell' : 'Our Buy') + ' Price / oz';
     $('outPrice').textContent = fmt(deal.pricePerOz);
@@ -3288,7 +3361,7 @@ function recalcDeal() {
 
   // Form 8300 compliance warning (single + 24hr aggregation)
   const payment = calcPayment.value;
-  const scrapQty = form === 'scrap' ? getScrapFineOz(qty) : qty;
+  const scrapQty = form === 'scrap' ? getScrapFineOz(qty) : (['bars', 'rounds', 'coins'].includes(form) ? getWeightInTroyOz(qty) : qty);
   const pre33Qty = isPre33(coinType) ? qty * (PRE33_GOLD_CONTENT[coinType] || 1) : scrapQty;
   const currentLineTotal = deal.isJunk ? deal.pricePerUnit * qty : (deal.pricePerOz || 0) * pre33Qty;
   const dealLinesTotal = dealLines.reduce((s, l) => s + l.total, 0);
@@ -3388,6 +3461,10 @@ $('logDealBtn').addEventListener('click', () => {
     if (dealLines[0].scrapPurity) {
       tx.scrapPurity = dealLines[0].scrapPurity;
       tx.scrapWeightUnit = dealLines[0].scrapWeightUnit;
+      tx.rawQty = dealLines[0].rawQty;
+    }
+    if (dealLines[0].weightUnit) {
+      tx.weightUnit = dealLines[0].weightUnit;
       tx.rawQty = dealLines[0].rawQty;
     }
   }
@@ -3533,7 +3610,7 @@ function renderTransactions() {
       const line = lines[0];
       metalCol = line.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
       formCol = getFormDisplayLabel(line.form, line.coinType);
-      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : line.form === 'scrap' && line.scrapPurity ? fmtOz(line.qty) + ' fine oz' : fmtOz(line.qty) + ' oz';
+      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : line.form === 'scrap' && line.scrapPurity ? fmtOz(line.qty) + ' fine oz' : line.weightUnit && line.weightUnit !== 'ozt' ? line.rawQty + (line.weightUnit === 'g' ? 'g' : ' ' + WEIGHT_UNITS[line.weightUnit].label) + ' (' + fmtOz(line.qty) + ' oz)' : fmtOz(line.qty) + ' oz';
       spotCol = fmt(line.spot);
       priceCol = fmt(line.price);
     }
@@ -3654,6 +3731,18 @@ window.openEditModal = function(id) {
     $('editScrapPurityGroup').style.display = 'none';
     $('editScrapWeightUnitGroup').style.display = 'none';
   }
+  // Weight unit for bars/rounds/coins
+  if (line.weightUnit && ['bars', 'rounds', 'coins'].includes(line.form) && !isPre33(line.coinType)) {
+    $('editWeightUnitGroup').style.display = '';
+    $('editWeightUnit').value = line.weightUnit;
+    $('editQty').value = line.rawQty;
+  } else if (['bars', 'rounds'].includes(line.form) || (line.form === 'coins' && !isPre33(line.coinType))) {
+    $('editWeightUnitGroup').style.display = '';
+    $('editWeightUnit').value = 'ozt';
+  } else {
+    $('editWeightUnitGroup').style.display = 'none';
+    $('editWeightUnit').value = 'ozt';
+  }
   $('editType').value = tx.type;
   if (!(line.form === 'scrap' && line.scrapPurity)) $('editQty').value = line.qty;
   $('editSpot').value = line.spot;
@@ -3685,6 +3774,14 @@ $('editForm').addEventListener('change', () => {
   $('editCoinTypeGroup').style.display = $('editForm').value === 'coins' ? '' : 'none';
   $('editScrapPurityGroup').style.display = $('editForm').value === 'scrap' ? '' : 'none';
   $('editScrapWeightUnitGroup').style.display = $('editForm').value === 'scrap' ? '' : 'none';
+  // Weight unit for bars/rounds/coins (non-pre33)
+  const editFormVal = $('editForm').value;
+  if (['bars', 'rounds'].includes(editFormVal) || (editFormVal === 'coins' && !($('editCoinType').value || '').startsWith('pre33'))) {
+    $('editWeightUnitGroup').style.display = '';
+  } else {
+    $('editWeightUnitGroup').style.display = 'none';
+    $('editWeightUnit').value = 'ozt';
+  }
   if ($('editForm').value === 'scrap' && !$('editScrapPurity').options.length) {
     const metal = $('editMetal').value;
     const purities = SCRAP_PURITIES[metal] || {};
@@ -3717,6 +3814,7 @@ $('editSaveBtn').addEventListener('click', () => {
   // Scrap purity conversion
   let qty = rawQtyInput;
   let editScrapPurity, editScrapWeightUnit, editRawQty;
+  let editWeightUnit, editWeightRawQty;
   if (editedForm === 'scrap' && $('editScrapPurityGroup').style.display !== 'none') {
     const purityKey = $('editScrapPurity').value;
     const unitKey = $('editScrapWeightUnit').value;
@@ -3726,6 +3824,13 @@ $('editSaveBtn').addEventListener('click', () => {
       editScrapPurity = purityKey;
       editScrapWeightUnit = unitKey;
       editRawQty = rawQtyInput;
+    }
+  } else if (['bars', 'rounds', 'coins'].includes(editedForm) && $('editWeightUnitGroup').style.display !== 'none') {
+    const unitKey = $('editWeightUnit').value;
+    if (unitKey !== 'ozt') {
+      qty = rawQtyInput * WEIGHT_UNITS[unitKey].toTroyOz;
+      editWeightUnit = unitKey;
+      editWeightRawQty = rawQtyInput;
     }
   }
 
@@ -3767,6 +3872,10 @@ $('editSaveBtn').addEventListener('click', () => {
     updatedLine.scrapPurity = editScrapPurity;
     updatedLine.scrapWeightUnit = editScrapWeightUnit;
     updatedLine.rawQty = editRawQty;
+  }
+  if (editWeightUnit) {
+    updatedLine.weightUnit = editWeightUnit;
+    updatedLine.rawQty = editWeightRawQty;
   }
 
   if (existingLines && existingLines.length > 1) {
@@ -3820,6 +3929,12 @@ $('editSaveBtn').addEventListener('click', () => {
     } else {
       delete updated.scrapPurity;
       delete updated.scrapWeightUnit;
+    }
+    if (editWeightUnit) {
+      updated.weightUnit = editWeightUnit;
+      updated.rawQty = editWeightRawQty;
+    } else if (!editScrapPurity) {
+      delete updated.weightUnit;
       delete updated.rawQty;
     }
     transactions[idx] = updated;
@@ -3882,7 +3997,7 @@ function generateReceipt(tx) {
     itemsHtml = `<div class="receipt-body">` +
       lines.map((line, i) => {
         const metalLabel = line.metal === 'gold' ? 'Gold' : 'Silver';
-        const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : line.form === 'scrap' && line.scrapPurity ? line.rawQty + (line.scrapWeightUnit === 'g' ? 'g' : line.scrapWeightUnit === 'dwt' ? ' dwt' : ' ozt') + ' ' + ((SCRAP_PURITIES[line.metal] || {})[line.scrapPurity] || {}).label + ' (' + fmtOz(line.qty) + ' fine toz)' : fmtOz(line.qty) + ' oz';
+        const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : line.form === 'scrap' && line.scrapPurity ? line.rawQty + (line.scrapWeightUnit === 'g' ? 'g' : line.scrapWeightUnit === 'dwt' ? ' dwt' : line.scrapWeightUnit === 'tlb' ? ' tlb' : ' ozt') + ' ' + ((SCRAP_PURITIES[line.metal] || {})[line.scrapPurity] || {}).label + ' (' + fmtOz(line.qty) + ' fine toz)' : line.weightUnit && line.weightUnit !== 'ozt' ? line.rawQty + (line.weightUnit === 'g' ? 'g' : ' ' + WEIGHT_UNITS[line.weightUnit].label) + ' (' + fmtOz(line.qty) + ' troy oz)' : fmtOz(line.qty) + ' oz';
         return `
           <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px dotted #ddd;">
             <div style="font-weight:700;font-size:12px;color:#888;margin-bottom:4px;">Item ${i + 1}</div>
@@ -3898,7 +4013,7 @@ function generateReceipt(tx) {
   } else {
     const line = lines[0];
     const metalLabel = line.metal === 'gold' ? 'Gold' : 'Silver';
-    const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' Face Value' : isPre33(line.coinType) ? line.qty + ' coins' : line.form === 'scrap' && line.scrapPurity ? line.rawQty + (line.scrapWeightUnit === 'g' ? 'g' : line.scrapWeightUnit === 'dwt' ? ' dwt' : ' ozt') + ' ' + ((SCRAP_PURITIES[line.metal] || {})[line.scrapPurity] || {}).label + ' (' + fmtOz(line.qty) + ' fine toz)' : fmtOz(line.qty) + ' troy oz';
+    const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' Face Value' : isPre33(line.coinType) ? line.qty + ' coins' : line.form === 'scrap' && line.scrapPurity ? line.rawQty + (line.scrapWeightUnit === 'g' ? 'g' : line.scrapWeightUnit === 'dwt' ? ' dwt' : line.scrapWeightUnit === 'tlb' ? ' tlb' : ' ozt') + ' ' + ((SCRAP_PURITIES[line.metal] || {})[line.scrapPurity] || {}).label + ' (' + fmtOz(line.qty) + ' fine toz)' : line.weightUnit && line.weightUnit !== 'ozt' ? line.rawQty + (line.weightUnit === 'g' ? 'g' : ' ' + WEIGHT_UNITS[line.weightUnit].label) + ' (' + fmtOz(line.qty) + ' troy oz)' : fmtOz(line.qty) + ' troy oz';
     itemsHtml = `
     <div class="receipt-body">
       <div class="receipt-row"><span class="receipt-label">Metal</span><span class="receipt-val">${metalLabel}</span></div>
@@ -4723,7 +4838,7 @@ function updateDashboard() {
     } else {
       const line = lines[0];
       metalCol = line.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
-      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : line.form === 'scrap' && line.scrapPurity ? fmtOz(line.qty) + ' fine oz' : fmtOz(line.qty) + ' oz';
+      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : line.form === 'scrap' && line.scrapPurity ? fmtOz(line.qty) + ' fine oz' : line.weightUnit && line.weightUnit !== 'ozt' ? line.rawQty + (line.weightUnit === 'g' ? 'g' : ' ' + WEIGHT_UNITS[line.weightUnit].label) + ' (' + fmtOz(line.qty) + ' oz)' : fmtOz(line.qty) + ' oz';
     }
 
     const custName = getCustomerName(tx.customerId);
@@ -4823,7 +4938,7 @@ window.openCustomerProfile = function(customerId) {
         const line = lines[0];
         metalCol = line.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
         formCol = getFormDisplayLabel(line.form, line.coinType);
-        qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' oz';
+        qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : line.weightUnit && line.weightUnit !== 'ozt' ? line.rawQty + (line.weightUnit === 'g' ? 'g' : ' ' + WEIGHT_UNITS[line.weightUnit].label) + ' (' + fmtOz(line.qty) + ' oz)' : fmtOz(line.qty) + ' oz';
       }
 
       const badges = (tx.form8300Flag ? '<span class="compliance-badge">8300</span>' : '') +
