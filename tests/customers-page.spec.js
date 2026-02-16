@@ -206,4 +206,49 @@ test.describe('Customers Page', () => {
     await expect(rows.nth(1)).toContainText('Bob Silver');
     await expect(rows.nth(2)).toContainText('Charlie Bronze');
   });
+
+  test('delete button visible in profile overlay', async ({ page }) => {
+    await navigateToCustomers(page);
+    await page.locator('.customer-row').first().click();
+    await expect(page.locator('#customerProfileOverlay')).toHaveClass(/open/);
+    await expect(page.locator('#cpDeleteBtn')).toBeVisible();
+  });
+
+  test('confirming delete removes customer from list', async ({ page }) => {
+    await navigateToCustomers(page);
+    page.on('dialog', dialog => dialog.accept());
+    await page.locator('.customer-row', { hasText: 'Alice Gold' }).click();
+    await expect(page.locator('#customerProfileOverlay')).toHaveClass(/open/);
+    await page.click('#cpDeleteBtn');
+    await expect(page.locator('#customerProfileOverlay')).not.toHaveClass(/open/);
+    const rows = page.locator('.customer-row');
+    await expect(rows).toHaveCount(2);
+    await expect(page.locator('.customer-row', { hasText: 'Alice Gold' })).toHaveCount(0);
+  });
+
+  test('cancelling delete keeps customer', async ({ page }) => {
+    await navigateToCustomers(page);
+    page.on('dialog', dialog => dialog.dismiss());
+    await page.locator('.customer-row', { hasText: 'Alice Gold' }).click();
+    await expect(page.locator('#customerProfileOverlay')).toHaveClass(/open/);
+    await page.click('#cpDeleteBtn');
+    await expect(page.locator('#customerProfileOverlay')).toHaveClass(/open/);
+    await page.locator('#cpCloseBtn').click();
+    const rows = page.locator('.customer-row');
+    await expect(rows).toHaveCount(3);
+  });
+
+  test('transactions from deleted customer remain but show no customer name', async ({ page }) => {
+    await navigateToCustomers(page);
+    page.on('dialog', dialog => dialog.accept());
+    await page.locator('.customer-row', { hasText: 'Alice Gold' }).click();
+    await page.click('#cpDeleteBtn');
+    // Navigate to transactions page and verify Alice's transactions still exist but without her name
+    await page.locator('.nav-item[data-page="transactions"]').click();
+    await expect(page.locator('#page-transactions')).toHaveClass(/active/);
+    // All 5 transactions should still be in the table
+    await expect(page.locator('#txBody tr')).toHaveCount(5);
+    // None of the rows should contain 'Alice Gold' anymore
+    await expect(page.locator('#txBody tr', { hasText: 'Alice Gold' })).toHaveCount(0);
+  });
 });
