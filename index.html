@@ -1845,6 +1845,10 @@ tr.compliance-row-flagged.compliance-row-1099b {
               <option value="krugerrands">Krugerrands</option>
               <option value="britannias">Britannias</option>
               <option value="philharmonics">Philharmonics</option>
+              <option value="pre33_20">$20 Double Eagle</option>
+              <option value="pre33_10">$10 Eagle</option>
+              <option value="pre33_5">$5 Half Eagle</option>
+              <option value="pre33_250">$2.50 Quarter Eagle</option>
             </select>
           </div>
           <div class="form-group full-width">
@@ -2243,6 +2247,10 @@ tr.compliance-row-flagged.compliance-row-1099b {
             <label class="form-label">Philharmonics %</label>
             <input class="form-input" type="number" id="adjPhilharmonics" step="0.1" value="0">
           </div>
+          <div class="form-group">
+            <label class="form-label">Pre-1933 US Gold %</label>
+            <input class="form-input" type="number" id="adjPre33" step="0.1" value="0">
+          </div>
         </div>
       </div>
 
@@ -2369,6 +2377,10 @@ tr.compliance-row-flagged.compliance-row-1099b {
           <option value="krugerrands">Krugerrands</option>
           <option value="britannias">Britannias</option>
           <option value="philharmonics">Philharmonics</option>
+          <option value="pre33_20">$20 Double Eagle</option>
+          <option value="pre33_10">$10 Eagle</option>
+          <option value="pre33_5">$5 Half Eagle</option>
+          <option value="pre33_250">$2.50 Quarter Eagle</option>
         </select>
       </div>
       <div class="form-group">
@@ -2584,7 +2596,7 @@ const DEFAULT_SETTINGS = {
   sellPremCoins: 7, sellPremBars: 5, sellPremScrap: 3,
   buyDiscCoins: 3, buyDiscBars: 5, buyDiscScrap: 8,
   whDiscCoins: 1, whDiscBars: 2, whDiscScrap: 3,
-  coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0 },
+  coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0, pre33: 0 },
   junkDivisor: 1.3, junkMultOverride: null,
   threshGold: 10, threshSilver: 500,
   reorderPoints: {
@@ -2744,7 +2756,7 @@ function getFormLabel(form) {
 }
 
 function getCoinTypeLabel(coinType) {
-  return { eagles: 'American Eagles', maples: 'Maple Leafs', krugerrands: 'Krugerrands', britannias: 'Britannias', philharmonics: 'Philharmonics' }[coinType] || '';
+  return { eagles: 'American Eagles', maples: 'Maple Leafs', krugerrands: 'Krugerrands', britannias: 'Britannias', philharmonics: 'Philharmonics', pre33_20: '$20 Double Eagle', pre33_10: '$10 Eagle', pre33_5: '$5 Half Eagle', pre33_250: '$2.50 Quarter Eagle' }[coinType] || '';
 }
 
 function getFormDisplayLabel(form, coinType) {
@@ -2867,7 +2879,8 @@ function getMargin(txType, form, coinType) {
     else if (form === 'scrap') base = -settings.whDiscScrap / 100;
   }
   if (form === 'coins' && coinType) {
-    const adj = (settings.coinAdjustments || {})[coinType] || 0;
+    const adjKey = coinType.startsWith('pre33') ? 'pre33' : coinType;
+    const adj = (settings.coinAdjustments || {})[adjKey] || 0;
     if (txType === 'buy') base -= adj / 100;
     else base += adj / 100;
   }
@@ -3003,6 +3016,9 @@ calcForm.addEventListener('change', () => {
   if (calcForm.value === 'junk') {
     calcMetal.value = 'silver';
     calcMetal.disabled = true;
+  } else if (calcForm.value === 'coins' && $('calcCoinType').value.startsWith('pre33')) {
+    calcMetal.value = 'gold';
+    calcMetal.disabled = true;
   } else {
     calcMetal.disabled = false;
   }
@@ -3011,7 +3027,15 @@ calcForm.addEventListener('change', () => {
   recalcDeal();
 });
 
-$('calcCoinType').addEventListener('change', recalcDeal);
+$('calcCoinType').addEventListener('change', () => {
+  if ($('calcCoinType').value.startsWith('pre33')) {
+    calcMetal.value = 'gold';
+    calcMetal.disabled = true;
+  } else if (calcForm.value !== 'junk') {
+    calcMetal.disabled = false;
+  }
+  recalcDeal();
+});
 
 calcMetal.addEventListener('change', recalcDeal);
 calcQty.addEventListener('input', recalcDeal);
@@ -4043,6 +4067,7 @@ function loadSettings() {
   $('adjKrugerrands').value = ca.krugerrands || 0;
   $('adjBritannias').value = ca.britannias || 0;
   $('adjPhilharmonics').value = ca.philharmonics || 0;
+  $('adjPre33').value = ca.pre33 || 0;
   $('junkDivisor').value = settings.junkDivisor;
   $('junkMultOverride').value = settings.junkMultOverride || '';
   $('threshGold').value = settings.threshGold;
@@ -4077,7 +4102,8 @@ $('saveSettingsBtn').addEventListener('click', () => {
       maples: Math.max(0, parseFloat($('adjMaples').value) || 0),
       krugerrands: Math.max(0, parseFloat($('adjKrugerrands').value) || 0),
       britannias: Math.max(0, parseFloat($('adjBritannias').value) || 0),
-      philharmonics: Math.max(0, parseFloat($('adjPhilharmonics').value) || 0)
+      philharmonics: Math.max(0, parseFloat($('adjPhilharmonics').value) || 0),
+      pre33: Math.max(0, parseFloat($('adjPre33').value) || 0)
     },
     junkDivisor: parseFloat($('junkDivisor').value) > 0 ? parseFloat($('junkDivisor').value) : 1.3,
     junkMultOverride: parseFloat($('junkMultOverride').value) || null,
