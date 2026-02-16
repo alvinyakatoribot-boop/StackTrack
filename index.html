@@ -2392,6 +2392,7 @@ tr.compliance-row-flagged.compliance-row-1099b {
         </div>
       </div>
       <div class="cp-header-right">
+        <button class="modal-btn danger" id="cpDeleteBtn">Delete</button>
         <button class="modal-btn primary" id="cpSaveBtn">Save</button>
         <button class="modal-btn secondary" id="cpCloseBtn">Close</button>
       </div>
@@ -4255,6 +4256,21 @@ function closeCustomerProfile() {
   $('customerProfileOverlay').classList.remove('open');
 }
 
+function deleteCustomer() {
+  if (!confirm('Delete this customer? This cannot be undone.')) return;
+  const id = $('cpCustomerId').value;
+  customers = customers.filter(c => c.id !== id);
+  transactions.forEach(t => { if (t.customerId === id) t.customerId = null; });
+  Store.set('customers', customers);
+  Store.set('transactions', transactions);
+  closeCustomerProfile();
+  populateFilterCustomerSelect();
+  renderCustomersPage();
+  renderTransactions();
+  updateDashboard();
+}
+
+$('cpDeleteBtn').addEventListener('click', deleteCustomer);
 $('cpSaveBtn').addEventListener('click', saveCustomerProfile);
 $('cpCloseBtn').addEventListener('click', closeCustomerProfile);
 $('customerProfileOverlay').addEventListener('click', (e) => {
