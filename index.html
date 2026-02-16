@@ -876,6 +876,37 @@ td.profit-negative { color: var(--red); font-family: var(--mono); }
 
 .save-confirm.show { opacity: 1; }
 
+.data-mgmt-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.data-mgmt-actions button {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: opacity var(--transition);
+}
+
+.data-export-btn {
+  border: none;
+  background: var(--gold);
+  color: #0a0a0a;
+}
+
+.data-import-btn {
+  border: 1px solid var(--border);
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+}
+
+.data-mgmt-actions button:hover { opacity: 0.85; }
+
 /* ═══════════════════════════════════════ */
 /* MODAL                                  */
 /* ═══════════════════════════════════════ */
@@ -1576,6 +1607,16 @@ tr.compliance-row-flagged {
             <input class="form-input" type="number" id="threshSilver" step="1" value="500">
           </div>
         </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Data Management</div>
+        <div class="data-mgmt-actions">
+          <button class="data-export-btn" id="exportDataBtn">Export Data</button>
+          <button class="data-import-btn" id="importDataBtn">Import Data</button>
+        </div>
+        <input type="file" id="importFileInput" accept=".json" style="display:none;">
+        <span class="save-confirm" id="dataConfirm"></span>
       </div>
 
       <button class="settings-save-btn" id="saveSettingsBtn">Save Settings</button>
@@ -2784,6 +2825,67 @@ $('saveSettingsBtn').addEventListener('click', () => {
   const confirm = $('saveConfirm');
   confirm.classList.add('show');
   setTimeout(() => confirm.classList.remove('show'), 2000);
+});
+
+// ─── Data Export/Import ───
+$('exportDataBtn').addEventListener('click', () => {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    settings,
+    transactions,
+    customers,
+    contacts
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `stacktrack-backup-${date}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+$('importDataBtn').addEventListener('click', () => {
+  $('importFileInput').value = '';
+  $('importFileInput').click();
+});
+
+$('importFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const confirm = $('dataConfirm');
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const data = JSON.parse(evt.target.result);
+      if (!Array.isArray(data.transactions) || !Array.isArray(data.customers)) {
+        throw new Error('Invalid backup file');
+      }
+      if (data.settings) { settings = { ...DEFAULT_SETTINGS, ...data.settings }; Store.set('settings', settings); }
+      transactions = data.transactions; Store.set('transactions', transactions);
+      customers = data.customers; Store.set('customers', customers);
+      contacts = data.contacts || []; Store.set('contacts', contacts);
+      loadSettings();
+      renderTransactions();
+      renderContacts();
+      populateFilterCustomerSelect();
+      checkAlerts();
+      confirm.textContent = 'Data imported!';
+      confirm.style.color = 'var(--green)';
+      confirm.classList.add('show');
+      setTimeout(() => confirm.classList.remove('show'), 3000);
+    } catch (err) {
+      confirm.textContent = 'Import failed: ' + err.message;
+      confirm.style.color = '#ef4444';
+      confirm.classList.add('show');
+      setTimeout(() => confirm.classList.remove('show'), 4000);
+    }
+  };
+  reader.readAsText(file);
 });
 
 // ─── Customer Selector ───
