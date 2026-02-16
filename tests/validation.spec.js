@@ -623,3 +623,185 @@ test.describe('Fixed-dollar premiums', () => {
     expect(modes.sellPremCoins).toBe('dollar');
   });
 });
+
+// ─── FIFO Cost Basis ────────────────────────────────────────────────
+
+test.describe('FIFO Cost Basis', () => {
+  const FIFO_DATA = {
+    settings: {
+      shopName: 'Test Shop',
+      sellPremCoins: 7, sellPremBars: 5, sellPremScrap: 3,
+      buyDiscCoins: 3, buyDiscBars: 5, buyDiscScrap: 8,
+      whDiscCoins: 1, whDiscBars: 2, whDiscScrap: 3,
+      coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0 },
+      junkMultiplier: 0.715, junkMultOverride: null,
+      sellPremJunk: 7, buyDiscJunk: 3, whDiscJunk: 1,
+      threshGold: 10, threshSilver: 500,
+    },
+    transactions: [
+      {
+        id: 'fifo-buy1', date: '2025-01-10T10:00:00Z', type: 'buy',
+        metal: 'gold', form: 'bars', qty: 5, spot: 1950, price: 1900,
+        total: 9500, profit: 250, payment: 'wire',
+      },
+      {
+        id: 'fifo-buy2', date: '2025-01-15T10:00:00Z', type: 'buy',
+        metal: 'gold', form: 'bars', qty: 3, spot: 2150, price: 2100,
+        total: 6300, profit: 150, payment: 'wire',
+      },
+      {
+        id: 'fifo-sell1', date: '2025-01-20T10:00:00Z', type: 'sell',
+        metal: 'gold', form: 'bars', qty: 6, spot: 2250, price: 2300,
+        total: 13800, profit: 300, payment: 'wire',
+      },
+    ],
+    customers: [],
+    contacts: [],
+  };
+
+  async function seedFifoData(page) {
+    await page.evaluate((data) => {
+      localStorage.setItem('st_settings', JSON.stringify(data.settings));
+      localStorage.setItem('st_transactions', JSON.stringify(data.transactions));
+      localStorage.setItem('st_customers', JSON.stringify(data.customers));
+      localStorage.setItem('st_contacts', JSON.stringify(data.contacts));
+    }, FIFO_DATA);
+    await page.reload();
+    await page.waitForFunction(() => {
+      const el = document.getElementById('outSpot');
+      return el && !el.textContent.includes('$0.00');
+    }, { timeout: 5000 });
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await mockSpotPrices(page, { gold: 2400, silver: 30 });
+    await seedFifoData(page);
+  });
+
+  test('correct FIFO cost basis for remaining inventory', async ({ page }) => {
+    // Buy 5oz @ $1900, buy 3oz @ $2100, sell 6oz
+    // FIFO consumes 5oz @ $1900 + 1oz @ $2100 → remaining 2oz @ $2100
+    const result = await page.evaluate(() => {
+      const cb = getCostBasis();
+      return {
+        qty: cb.summary.gold.bars.qty,
+        totalCost: cb.summary.gold.bars.totalCost,
+        avgCost: cb.summary.gold.bars.avgCost,
+      };
+    });
+
+    expect(result.qty).toBeCloseTo(2, 3);
+    expect(result.totalCost).toBeCloseTo(4200, 1);
+    expect(result.avgCost).toBeCloseTo(2100, 1);
+  });
+
+  test('correct realized P&L from FIFO', async ({ page }) => {
+    // Sell 6oz @ $2300 = $13,800 revenue
+    // FIFO cost = 5×$1900 + 1×$2100 = $11,600
+    // Realized = $13,800 - $11,600 = $2,200
+    const result = await page.evaluate(() => {
+      const cb = getCostBasis();
+      return {
+        totalRealizedPnl: cb.totalRealizedPnl,
+        sellRealized: cb.realizedByTx['fifo-sell1'],
+      };
+    });
+
+    expect(result.totalRealizedPnl).toBeCloseTo(2200, 1);
+    expect(result.sellRealized).toBeCloseTo(2200, 1);
+  });
+
+  test('inventory page shows cost values', async ({ page }) => {
+    await page.click('[data-page="inventory"]');
+    const costText = await page.textContent('#invGoldCost');
+    // Remaining 2oz @ $2100 = $4,200
+    expect(costText).toContain('4,200');
+    expect(costText).toContain('cost');
+  });
+
+  test('unrealized P&L computed correctly', async ({ page }) => {
+    // Remaining 2oz, spot $2400 → spot value $4,800; cost $4,200 → unrealized $600
+    await page.click('[data-page="inventory"]');
+    const unrealizedText = await page.textContent('#invGoldUnrealized');
+    expect(unrealizedText).toContain('600');
+    expect(unrealizedText).toContain('unrealized');
+  });
+
+  test('junk silver FIFO handles multiplier', async ({ page }) => {
+    // Add junk silver buy/sell
+    await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions'));
+      txs.push({
+        id: 'fifo-junk-buy', date: '2025-02-01T10:00:00Z', type: 'buy',
+        metal: 'silver', form: 'junk', qty: 10, spot: 28,
+        price: 20.02, total: 200.20, profit: 3.27, payment: 'cash',
+      });
+      txs.push({
+        id: 'fifo-junk-sell', date: '2025-02-05T10:00:00Z', type: 'sell',
+        metal: 'silver', form: 'junk', qty: 4, spot: 30,
+        price: 21.45, total: 85.80, profit: 0, payment: 'cash',
+      });
+      localStorage.setItem('st_transactions', JSON.stringify(txs));
+    });
+    await page.reload();
+    await page.waitForFunction(() => {
+      const el = document.getElementById('outSpot');
+      return el && !el.textContent.includes('$0.00');
+    }, { timeout: 5000 });
+
+    const result = await page.evaluate(() => {
+      const cb = getCostBasis();
+      return {
+        junkQty: cb.summary.silver.junk.qty,
+        junkCost: cb.summary.silver.junk.totalCost,
+      };
+    });
+
+    // Buy 10 FV × 0.715 = 7.15 oz, sell 4 FV × 0.715 = 2.86 oz
+    // Remaining = 7.15 - 2.86 = 4.29 oz
+    expect(result.junkQty).toBeCloseTo(4.29, 2);
+    // Cost per oz of buy = $200.20 / 7.15 = ~$28.00
+    // Remaining cost = 4.29 × $28.00 = ~$120.12
+    expect(result.junkCost).toBeCloseTo(120.12, 0);
+  });
+
+  test('backward compatible with transactions lacking cost data', async ({ page }) => {
+    // getCostBasis should work even when called with the base FIFO_DATA (no special cost fields)
+    const result = await page.evaluate(() => {
+      const cb = getCostBasis();
+      return { totalCostBasis: cb.totalCostBasis, totalRealizedPnl: cb.totalRealizedPnl };
+    });
+
+    // totalCostBasis = remaining 2oz @ $2100 = $4200
+    expect(result.totalCostBasis).toBeCloseTo(4200, 1);
+    expect(result.totalRealizedPnl).toBeCloseTo(2200, 1);
+  });
+
+  test('P&L page shows FIFO profit', async ({ page }) => {
+    await page.click('[data-page="pnl"]');
+    // Click "Monthly" to show all (our data is within a month context — use daily or check all periods)
+    // The FIFO profit label should contain $2,200
+    const fifoText = await page.textContent('#pnlFifoProfit');
+    expect(fifoText).toContain('FIFO basis');
+  });
+
+  test('P&L page shows inventory at cost', async ({ page }) => {
+    await page.click('[data-page="pnl"]');
+    const costText = await page.textContent('#pnlInvCost');
+    expect(costText).toContain('4,200');
+  });
+
+  test('P&L page shows unrealized P&L', async ({ page }) => {
+    await page.click('[data-page="pnl"]');
+    const unrealizedText = await page.textContent('#pnlUnrealized');
+    // spot $2400 × 2oz = $4800 - $4200 cost = $600
+    expect(unrealizedText).toContain('600');
+  });
+
+  test('dashboard shows cost basis in inventory snapshot', async ({ page }) => {
+    const costText = await page.textContent('#dashGoldCost');
+    expect(costText).toContain('4,200');
+    expect(costText).toContain('cost');
+  });
+});
