@@ -975,6 +975,43 @@ td.profit-negative { color: var(--red); font-family: var(--mono); }
   font-size: 12px;
 }
 
+.prem-input-wrap {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.prem-input-wrap .form-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.prem-mode-toggle {
+  flex-shrink: 0;
+  width: 32px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--mono);
+  cursor: pointer;
+  transition: all var(--transition);
+  padding: 0;
+}
+
+.prem-mode-toggle:hover {
+  border-color: var(--border-focus);
+}
+
+.prem-mode-toggle.dollar-mode {
+  background: var(--gold);
+  color: #0a0a0a;
+  border-color: var(--gold);
+}
+
 .settings-save-btn {
   padding: 12px 32px;
   border: none;
@@ -2195,16 +2232,25 @@ tr.compliance-row-flagged.compliance-row-1099b {
         <div class="settings-section-title">Sell Premiums (Spot + %)</div>
         <div class="settings-grid">
           <div class="form-group">
-            <label class="form-label">Coins %</label>
-            <input class="form-input" type="number" id="sellPremCoins" step="0.1" value="7">
+            <label class="form-label" data-prem-label="sellPremCoins">Coins %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="sellPremCoins" step="0.1" value="7">
+              <button class="prem-mode-toggle" data-field="sellPremCoins" type="button">%</button>
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Bars & Rounds %</label>
-            <input class="form-input" type="number" id="sellPremBars" step="0.1" value="5">
+            <label class="form-label" data-prem-label="sellPremBars">Bars & Rounds %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="sellPremBars" step="0.1" value="5">
+              <button class="prem-mode-toggle" data-field="sellPremBars" type="button">%</button>
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Scrap %</label>
-            <input class="form-input" type="number" id="sellPremScrap" step="0.1" value="3">
+            <label class="form-label" data-prem-label="sellPremScrap">Scrap %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="sellPremScrap" step="0.1" value="3">
+              <button class="prem-mode-toggle" data-field="sellPremScrap" type="button">%</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2213,16 +2259,25 @@ tr.compliance-row-flagged.compliance-row-1099b {
         <div class="settings-section-title">Buy Discounts (Spot − %)</div>
         <div class="settings-grid">
           <div class="form-group">
-            <label class="form-label">Coins %</label>
-            <input class="form-input" type="number" id="buyDiscCoins" step="0.1" value="3">
+            <label class="form-label" data-prem-label="buyDiscCoins">Coins %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="buyDiscCoins" step="0.1" value="3">
+              <button class="prem-mode-toggle" data-field="buyDiscCoins" type="button">%</button>
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Bars & Rounds %</label>
-            <input class="form-input" type="number" id="buyDiscBars" step="0.1" value="5">
+            <label class="form-label" data-prem-label="buyDiscBars">Bars & Rounds %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="buyDiscBars" step="0.1" value="5">
+              <button class="prem-mode-toggle" data-field="buyDiscBars" type="button">%</button>
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Scrap %</label>
-            <input class="form-input" type="number" id="buyDiscScrap" step="0.1" value="8">
+            <label class="form-label" data-prem-label="buyDiscScrap">Scrap %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="buyDiscScrap" step="0.1" value="8">
+              <button class="prem-mode-toggle" data-field="buyDiscScrap" type="button">%</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2231,16 +2286,25 @@ tr.compliance-row-flagged.compliance-row-1099b {
         <div class="settings-section-title">Wholesale Discounts (Spot − %)</div>
         <div class="settings-grid">
           <div class="form-group">
-            <label class="form-label">Coins %</label>
-            <input class="form-input" type="number" id="whDiscCoins" step="0.1" value="1">
+            <label class="form-label" data-prem-label="whDiscCoins">Coins %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="whDiscCoins" step="0.1" value="1">
+              <button class="prem-mode-toggle" data-field="whDiscCoins" type="button">%</button>
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Bars & Rounds %</label>
-            <input class="form-input" type="number" id="whDiscBars" step="0.1" value="2">
+            <label class="form-label" data-prem-label="whDiscBars">Bars & Rounds %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="whDiscBars" step="0.1" value="2">
+              <button class="prem-mode-toggle" data-field="whDiscBars" type="button">%</button>
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Scrap %</label>
-            <input class="form-input" type="number" id="whDiscScrap" step="0.1" value="3">
+            <label class="form-label" data-prem-label="whDiscScrap">Scrap %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="whDiscScrap" step="0.1" value="3">
+              <button class="prem-mode-toggle" data-field="whDiscScrap" type="button">%</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2287,16 +2351,25 @@ tr.compliance-row-flagged.compliance-row-1099b {
             <input class="form-input" type="number" id="junkMultOverride" step="0.1" placeholder="Leave blank for auto">
           </div>
           <div class="form-group">
-            <label class="form-label">Sell Premium %</label>
-            <input class="form-input" type="number" id="sellPremJunk" step="0.1" value="7">
+            <label class="form-label" data-prem-label="sellPremJunk">Sell Premium %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="sellPremJunk" step="0.1" value="7">
+              <button class="prem-mode-toggle" data-field="sellPremJunk" type="button">%</button>
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Buy Discount %</label>
-            <input class="form-input" type="number" id="buyDiscJunk" step="0.1" value="3">
+            <label class="form-label" data-prem-label="buyDiscJunk">Buy Discount %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="buyDiscJunk" step="0.1" value="3">
+              <button class="prem-mode-toggle" data-field="buyDiscJunk" type="button">%</button>
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Wholesale Discount %</label>
-            <input class="form-input" type="number" id="whDiscJunk" step="0.1" value="1">
+            <label class="form-label" data-prem-label="whDiscJunk">Wholesale Discount %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="whDiscJunk" step="0.1" value="1">
+              <button class="prem-mode-toggle" data-field="whDiscJunk" type="button">%</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2690,12 +2763,14 @@ const DEFAULT_SETTINGS = {
   reorderPoints: {
     goldCoins: 0, goldBars: 0, goldRounds: 0, goldScrap: 0,
     silverCoins: 0, silverBars: 0, silverRounds: 0, silverJunk: 0, silverScrap: 0
-  }
+  },
+  premiumModes: {}
 };
 
 let settings = { ...DEFAULT_SETTINGS, ...Store.get('settings', {}) };
 if (!settings.coinAdjustments) settings.coinAdjustments = { ...DEFAULT_SETTINGS.coinAdjustments };
 if (!settings.reorderPoints) settings.reorderPoints = { ...DEFAULT_SETTINGS.reorderPoints };
+if (!settings.premiumModes) settings.premiumModes = {};
 // Migrate junkDivisor → junkMultiplier
 if (settings.junkDivisor !== undefined && settings.junkMultiplier === undefined) {
   settings.junkMultiplier = 0.715;
@@ -3015,24 +3090,99 @@ function getMargin(txType, form, coinType) {
   return base;
 }
 
+const PREM_LABEL_MAP = {
+  sellPremCoins: 'Coins', sellPremBars: 'Bars & Rounds', sellPremScrap: 'Scrap',
+  buyDiscCoins: 'Coins', buyDiscBars: 'Bars & Rounds', buyDiscScrap: 'Scrap',
+  whDiscCoins: 'Coins', whDiscBars: 'Bars & Rounds', whDiscScrap: 'Scrap',
+  sellPremJunk: 'Sell Premium', buyDiscJunk: 'Buy Discount', whDiscJunk: 'Wholesale Discount'
+};
+
+function updatePremToggleUI(field) {
+  const mode = (settings.premiumModes || {})[field] || 'pct';
+  const btn = document.querySelector(`.prem-mode-toggle[data-field="${field}"]`);
+  const label = document.querySelector(`[data-prem-label="${field}"]`);
+  if (btn) {
+    btn.textContent = mode === 'dollar' ? '$' : '%';
+    btn.classList.toggle('dollar-mode', mode === 'dollar');
+  }
+  if (label) {
+    const base = PREM_LABEL_MAP[field] || field;
+    label.textContent = base + (mode === 'dollar' ? ' $' : ' %');
+  }
+}
+
+function initPremToggles() {
+  document.querySelectorAll('.prem-mode-toggle').forEach(btn => {
+    const field = btn.dataset.field;
+    updatePremToggleUI(field);
+    btn.addEventListener('click', () => {
+      const current = (settings.premiumModes || {})[field] || 'pct';
+      if (!settings.premiumModes) settings.premiumModes = {};
+      if (current === 'pct') {
+        settings.premiumModes[field] = 'dollar';
+      } else {
+        delete settings.premiumModes[field];
+      }
+      updatePremToggleUI(field);
+    });
+  });
+}
+
+function getPremiumFieldForFormType(txType, form) {
+  if (form === 'junk') {
+    if (txType === 'sell') return 'sellPremJunk';
+    if (txType === 'buy') return 'buyDiscJunk';
+    return 'whDiscJunk';
+  }
+  const formKey = (form === 'bars' || form === 'rounds') ? 'Bars' : form === 'scrap' ? 'Scrap' : 'Coins';
+  if (txType === 'sell') return 'sellPrem' + formKey;
+  if (txType === 'buy') return 'buyDisc' + formKey;
+  return 'whDisc' + formKey;
+}
+
 function calcDealPrice(metal, form, txType, coinType) {
   const spot = metal === 'gold' ? spotPrices.gold : spotPrices.silver;
 
   if (form === 'junk') {
     // Junk silver: multiplier-based
     const multiplier = settings.junkMultOverride || (spot * settings.junkMultiplier);
-    // For junk, the "price" is the multiplier * face value
-    // We still apply a margin adjustment for buy vs sell
-    let adj = 1;
-    if (txType === 'buy') adj = 1 - settings.buyDiscJunk / 100;
-    else if (txType === 'sell') adj = 1 + settings.sellPremJunk / 100;
-    else if (txType === 'wholesale') adj = 1 - settings.whDiscJunk / 100;
-    return { spot, pricePerUnit: multiplier * adj, multiplier, isJunk: true };
+    const junkField = getPremiumFieldForFormType(txType, 'junk');
+    const junkMode = (settings.premiumModes || {})[junkField] || 'pct';
+    const junkValue = settings[junkField] || 0;
+
+    if (junkMode === 'dollar') {
+      const pricePerUnit = txType === 'sell' ? multiplier + junkValue : multiplier - junkValue;
+      return { spot, pricePerUnit, multiplier, isJunk: true };
+    } else {
+      let adj = 1;
+      if (txType === 'buy') adj = 1 - junkValue / 100;
+      else if (txType === 'sell') adj = 1 + junkValue / 100;
+      else if (txType === 'wholesale') adj = 1 - junkValue / 100;
+      return { spot, pricePerUnit: multiplier * adj, multiplier, isJunk: true };
+    }
   }
 
-  const margin = getMargin(txType, form, coinType);
-  const pricePerOz = spot * (1 + margin);
-  return { spot, pricePerOz, margin, isJunk: false };
+  const field = getPremiumFieldForFormType(txType, form);
+  const mode = (settings.premiumModes || {})[field] || 'pct';
+  const value = settings[field] || 0;
+
+  if (mode === 'dollar') {
+    let pricePerOz;
+    if (txType === 'sell') pricePerOz = spot + value;
+    else pricePerOz = spot - value;
+    // Apply coin adjustment (still %) on top
+    if (form === 'coins' && coinType) {
+      const adjKey = coinType.startsWith('pre33') ? 'pre33' : coinType;
+      const adj = (settings.coinAdjustments || {})[adjKey] || 0;
+      if (txType === 'buy' || txType === 'wholesale') pricePerOz *= (1 - adj / 100);
+      else pricePerOz *= (1 + adj / 100);
+    }
+    return { spot, pricePerOz, margin: (pricePerOz - spot) / spot, isJunk: false };
+  } else {
+    const margin = getMargin(txType, form, coinType);
+    const pricePerOz = spot * (1 + margin);
+    return { spot, pricePerOz, margin, isJunk: false };
+  }
 }
 
 // ─── Deal Lines State ───
@@ -4462,6 +4612,10 @@ function loadSettings() {
   $('reorderSilverJunk').value = rp.silverJunk || 0;
   $('reorderSilverScrap').value = rp.silverScrap || 0;
   $('shopNameDisplay').textContent = settings.shopName;
+  // Update premium mode toggles
+  document.querySelectorAll('.prem-mode-toggle').forEach(btn => {
+    updatePremToggleUI(btn.dataset.field);
+  });
 }
 
 $('saveSettingsBtn').addEventListener('click', () => {
@@ -4501,7 +4655,16 @@ $('saveSettingsBtn').addEventListener('click', () => {
       silverRounds: Math.max(0, parseFloat($('reorderSilverRounds').value) || 0),
       silverJunk: Math.max(0, parseFloat($('reorderSilverJunk').value) || 0),
       silverScrap: Math.max(0, parseFloat($('reorderSilverScrap').value) || 0)
-    }
+    },
+    premiumModes: (() => {
+      const modes = {};
+      document.querySelectorAll('.prem-mode-toggle').forEach(btn => {
+        if (btn.classList.contains('dollar-mode')) {
+          modes[btn.dataset.field] = 'dollar';
+        }
+      });
+      return modes;
+    })()
   };
 
   Store.set('settings', settings);
@@ -5007,6 +5170,7 @@ $('customerProfileOverlay').addEventListener('click', (e) => {
 });
 
 // ─── Init ───
+initPremToggles();
 loadSettings();
 renderContacts();
 populateFilterCustomerSelect();

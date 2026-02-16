@@ -501,3 +501,125 @@ test.describe('Weight unit selector', () => {
     expect(tx.lines[0].rawQty).toBe(10);
   });
 });
+
+// ─── Fixed-Dollar Premiums ──────────────────────────────────────────
+
+test.describe('Fixed-dollar premiums', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await mockSpotPrices(page, { gold: 2500, silver: 32 });
+    await seedAndReload(page);
+  });
+
+  test('toggle button visible and defaults to % for sell premium fields', async ({ page }) => {
+    await page.click('[data-page="settings"]');
+    const toggle = page.locator('.prem-mode-toggle[data-field="sellPremCoins"]');
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveText('%');
+    await expect(toggle).not.toHaveClass(/dollar-mode/);
+  });
+
+  test('dollar mode: spot $2500 + $50 sell premium = $2550 price per oz', async ({ page }) => {
+    await page.click('[data-page="calculator"]');
+    await page.evaluate(() => {
+      settings.sellPremCoins = 50;
+      settings.premiumModes = { sellPremCoins: 'dollar' };
+    });
+
+    await page.click('.segment-btn[data-value="sell"]');
+    await page.selectOption('#calcMetal', 'gold');
+    await page.selectOption('#calcForm', 'coins');
+    await page.fill('#calcQty', '1');
+
+    const priceText = await page.locator('#outPrice').textContent();
+    const price = parseFloat(priceText.replace(/[$,]/g, ''));
+    expect(price).toBeCloseTo(2550, 0);
+  });
+
+  test('dollar mode: spot $2500 - $50 buy discount = $2450 price per oz', async ({ page }) => {
+    await page.click('[data-page="calculator"]');
+    await page.evaluate(() => {
+      settings.buyDiscCoins = 50;
+      settings.premiumModes = { buyDiscCoins: 'dollar' };
+    });
+
+    await page.click('.segment-btn[data-value="buy"]');
+    await page.selectOption('#calcMetal', 'gold');
+    await page.selectOption('#calcForm', 'coins');
+    await page.fill('#calcQty', '1');
+
+    const priceText = await page.locator('#outPrice').textContent();
+    const price = parseFloat(priceText.replace(/[$,]/g, ''));
+    expect(price).toBeCloseTo(2450, 0);
+  });
+
+  test('junk silver dollar mode: multiplier ± flat amount', async ({ page }) => {
+    // spot $32, multiplier 0.715 → base = 32 * 0.715 = 22.88
+    // sell premium $2 dollar mode → 22.88 + 2 = 24.88 per $1 FV
+    await page.click('[data-page="calculator"]');
+    await page.evaluate(() => {
+      settings.sellPremJunk = 2;
+      settings.premiumModes = { sellPremJunk: 'dollar' };
+    });
+
+    await page.click('.segment-btn[data-value="sell"]');
+    await page.selectOption('#calcMetal', 'silver');
+    await page.selectOption('#calcForm', 'junk');
+    await page.fill('#calcQty', '1');
+
+    const priceText = await page.locator('#outPrice').textContent();
+    const price = parseFloat(priceText.replace(/[$,]/g, ''));
+    // 32 * 0.715 + 2 = 24.88
+    expect(price).toBeCloseTo(24.88, 1);
+  });
+
+  test('backward compatible: settings without premiumModes use % mode', async ({ page }) => {
+    await page.click('[data-page="calculator"]');
+    await page.evaluate(() => {
+      delete settings.premiumModes;
+    });
+
+    // Default: sell, gold, coins with 7% premium → 2500 * 1.07 = 2675
+    await page.click('.segment-btn[data-value="sell"]');
+    await page.selectOption('#calcMetal', 'gold');
+    await page.selectOption('#calcForm', 'coins');
+    await page.fill('#calcQty', '1');
+
+    const priceText = await page.locator('#outPrice').textContent();
+    const price = parseFloat(priceText.replace(/[$,]/g, ''));
+    expect(price).toBeCloseTo(2675, 0);
+  });
+
+  test('dollar mode persists after save and reload', async ({ page }) => {
+    await page.click('[data-page="settings"]');
+
+    // Click the toggle for sellPremCoins to switch to dollar mode
+    const toggle = page.locator('.prem-mode-toggle[data-field="sellPremCoins"]');
+    await toggle.click();
+    await expect(toggle).toHaveText('$');
+    await expect(toggle).toHaveClass(/dollar-mode/);
+
+    // Save settings
+    await page.click('#saveSettingsBtn');
+
+    // Reload page
+    await page.reload();
+    await page.waitForFunction(() => {
+      const el = document.getElementById('outSpot');
+      return el && !el.textContent.includes('$0.00');
+    }, { timeout: 5000 });
+
+    // Check toggle state persisted
+    await page.click('[data-page="settings"]');
+    const toggleAfter = page.locator('.prem-mode-toggle[data-field="sellPremCoins"]');
+    await expect(toggleAfter).toHaveText('$');
+    await expect(toggleAfter).toHaveClass(/dollar-mode/);
+
+    // Verify premiumModes in localStorage
+    const modes = await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('st_settings'));
+      return s.premiumModes;
+    });
+    expect(modes.sellPremCoins).toBe('dollar');
+  });
+});
