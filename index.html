@@ -1186,6 +1186,262 @@ tr.compliance-row-flagged.compliance-row-1099b {
 .compliance-warning-1099b .compliance-icon { font-size: 16px; flex-shrink: 0; }
 
 /* ═══════════════════════════════════════ */
+/* CUSTOMER PROFILE MODAL                 */
+/* ═══════════════════════════════════════ */
+.customer-profile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 200;
+  padding-top: 40px;
+  overflow-y: auto;
+}
+
+.customer-profile-overlay.open { display: flex; }
+
+.customer-profile-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 900px;
+  margin-bottom: 40px;
+}
+
+.cp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.cp-header-left { flex: 1; min-width: 200px; }
+
+.cp-header-left h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.cp-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.cp-fields .form-group { margin: 0; }
+
+.cp-header-right {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding-top: 32px;
+}
+
+.cp-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.cp-stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.cp-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.cp-stat-value {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cp-stat-value.green { color: var(--green); }
+
+.cp-compliance {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.cp-compliance-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cp-compliance-item .count {
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+.cp-compliance-item.warn { color: var(--red); }
+.cp-compliance-item.ok { color: var(--green); }
+.cp-compliance-item.info { color: #FF9800; }
+
+.cp-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+
+.cp-tx-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.cp-tx-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.cp-tx-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.cp-tx-table .mono { font-family: var(--mono); font-size: 12px; }
+
+/* ═══════════════════════════════════════ */
+/* DASHBOARD                              */
+/* ═══════════════════════════════════════ */
+.dashboard-top-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.kpi-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.kpi-card-value {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.kpi-card-value.green { color: var(--green); }
+.kpi-card-value.red { color: var(--red); }
+.kpi-card-value.gold { color: var(--gold); }
+
+.dashboard-mid-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.dashboard-mid-grid .card { margin-bottom: 0; }
+
+.dashboard-recent { margin-bottom: 20px; }
+
+.compliance-action-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.compliance-action-item:hover { background: var(--bg-secondary); }
+
+.compliance-action-item:last-child { border-bottom: none; }
+
+.compliance-action-item .action-label { font-weight: 600; }
+
+.compliance-action-item .action-count {
+  font-family: var(--mono);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.compliance-action-item .action-count.red {
+  background: rgba(229, 57, 53, 0.15);
+  color: var(--red);
+}
+
+.compliance-action-item .action-count.orange {
+  background: rgba(255, 152, 0, 0.15);
+  color: #FF9800;
+}
+
+.compliance-action-item .action-count.green {
+  background: rgba(76, 175, 80, 0.15);
+  color: var(--green);
+}
+
+.inv-snapshot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.inv-snapshot-row:last-child { border-bottom: none; }
+
+.inv-snapshot-label { font-weight: 600; color: var(--text-primary); }
+.inv-snapshot-oz { font-family: var(--mono); color: var(--text-secondary); }
+.inv-snapshot-val { font-family: var(--mono); color: var(--text-muted); font-size: 12px; }
+
+/* ═══════════════════════════════════════ */
 /* RESPONSIVE                             */
 /* ═══════════════════════════════════════ */
 @media (max-width: 768px) {
@@ -1204,6 +1460,10 @@ tr.compliance-row-flagged.compliance-row-1099b {
   .pnl-grid { grid-template-columns: 1fr; }
   .settings-grid { grid-template-columns: 1fr; }
   .filters-bar { flex-direction: column; }
+  .dashboard-top-grid { grid-template-columns: 1fr 1fr; }
+  .dashboard-mid-grid { grid-template-columns: 1fr; }
+  .cp-stats-grid { grid-template-columns: 1fr 1fr; }
+  .cp-fields { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -1242,7 +1502,8 @@ tr.compliance-row-flagged.compliance-row-1099b {
 
 <!-- ═══════════════ NAVIGATION ═══════════════ -->
 <nav class="nav">
-  <div class="nav-item active" data-page="calculator">Calculator</div>
+  <div class="nav-item active" data-page="dashboard">Dashboard</div>
+  <div class="nav-item" data-page="calculator">Calculator</div>
   <div class="nav-item" data-page="transactions">Transactions</div>
   <div class="nav-item" data-page="inventory">Inventory</div>
   <div class="nav-item" data-page="pnl">P&L</div>
@@ -1257,8 +1518,93 @@ tr.compliance-row-flagged.compliance-row-1099b {
     <button id="bulkFlagBtn" style="display:none">Flag All</button>
   </div>
 
+  <!-- ═══════════════ DASHBOARD PAGE ═══════════════ -->
+  <div class="page active" id="page-dashboard">
+    <div class="dashboard-top-grid">
+      <div class="kpi-card">
+        <div class="kpi-card-label">Today's Transactions</div>
+        <div class="kpi-card-value" id="dashTxCount">0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-card-label">Today Bought ($)</div>
+        <div class="kpi-card-value gold" id="dashBought">$0.00</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-card-label">Today Sold ($)</div>
+        <div class="kpi-card-value" id="dashSold">$0.00</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-card-label">Today's Profit</div>
+        <div class="kpi-card-value green" id="dashProfit">$0.00</div>
+      </div>
+    </div>
+
+    <div class="dashboard-mid-grid">
+      <div class="card">
+        <div class="card-title">Inventory Snapshot</div>
+        <div id="dashInventory">
+          <div class="inv-snapshot-row">
+            <span class="inv-snapshot-label" style="color:var(--gold)">Gold</span>
+            <span class="inv-snapshot-oz" id="dashGoldOz">0.000 oz</span>
+            <span class="inv-snapshot-val" id="dashGoldVal">$0.00</span>
+          </div>
+          <div class="inv-snapshot-row">
+            <span class="inv-snapshot-label" style="color:var(--silver)">Silver</span>
+            <span class="inv-snapshot-oz" id="dashSilverOz">0.000 oz</span>
+            <span class="inv-snapshot-val" id="dashSilverVal">$0.00</span>
+          </div>
+          <div class="inv-snapshot-row">
+            <span class="inv-snapshot-label">Junk Silver</span>
+            <span class="inv-snapshot-oz" id="dashJunkOz">0.000 oz</span>
+            <span class="inv-snapshot-val" id="dashJunkVal">$0.00</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Compliance Action Items</div>
+        <div id="dashCompliance">
+          <div class="compliance-action-item" onclick="navigateToCompliance('needs-review')">
+            <span class="action-label">Unfiled Form 8300</span>
+            <span class="action-count red" id="dashUnfiled8300">0</span>
+          </div>
+          <div class="compliance-action-item" onclick="navigateToCompliance('1099b-needs-filing')">
+            <span class="action-label">Unfiled 1099-B</span>
+            <span class="action-count orange" id="dashUnfiled1099B">0</span>
+          </div>
+          <div class="compliance-action-item" onclick="navigateToCompliance('w9-needed')">
+            <span class="action-label">Customers Needing W-9</span>
+            <span class="action-count orange" id="dashNeedW9">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-recent">
+      <div class="card">
+        <div class="card-title">Recent Transactions</div>
+        <div style="overflow-x: auto;">
+          <table class="cp-tx-table" id="dashRecentTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Metal</th>
+                <th>Type</th>
+                <th>Customer</th>
+                <th>Qty</th>
+                <th>Total</th>
+                <th>Profit</th>
+              </tr>
+            </thead>
+            <tbody id="dashRecentBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="dashRecentEmpty" style="display:none;">No transactions yet.</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══════════════ CALCULATOR PAGE ═══════════════ -->
-  <div class="page active" id="page-calculator">
+  <div class="page" id="page-calculator">
     <div class="calc-layout">
       <div class="card calc-inputs">
         <div class="card-title">Deal Calculator</div>
@@ -1833,6 +2179,85 @@ tr.compliance-row-flagged.compliance-row-1099b {
   </div>
 </div>
 
+<!-- ═══════════════ CUSTOMER PROFILE MODAL ═══════════════ -->
+<div class="customer-profile-overlay" id="customerProfileOverlay">
+  <div class="customer-profile-modal">
+    <div class="cp-header">
+      <div class="cp-header-left">
+        <h2 id="cpName">Customer Name</h2>
+        <div class="cp-fields">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" type="email" id="cpEmail" placeholder="Email address">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input class="form-input" type="text" id="cpPhone" placeholder="Phone number">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes</label>
+            <input class="form-input" type="text" id="cpNotes" placeholder="Notes">
+          </div>
+          <div class="form-group" style="display:flex;align-items:flex-end;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-primary);cursor:pointer;">
+              <input type="checkbox" id="cpW9">
+              W-9 on file
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="cp-header-right">
+        <button class="modal-btn primary" id="cpSaveBtn">Save</button>
+        <button class="modal-btn secondary" id="cpCloseBtn">Close</button>
+      </div>
+    </div>
+
+    <div class="cp-stats-grid">
+      <div class="cp-stat-card">
+        <div class="cp-stat-label">Total Transactions</div>
+        <div class="cp-stat-value" id="cpTotalTx">0</div>
+      </div>
+      <div class="cp-stat-card">
+        <div class="cp-stat-label">Total Bought ($)</div>
+        <div class="cp-stat-value gold" id="cpTotalBought">$0.00</div>
+      </div>
+      <div class="cp-stat-card">
+        <div class="cp-stat-label">Total Sold ($)</div>
+        <div class="cp-stat-value" id="cpTotalSold">$0.00</div>
+      </div>
+      <div class="cp-stat-card">
+        <div class="cp-stat-label">Net P&L</div>
+        <div class="cp-stat-value green" id="cpNetPnl">$0.00</div>
+      </div>
+    </div>
+
+    <div class="cp-compliance" id="cpCompliance"></div>
+
+    <div class="cp-section-title">Transaction History</div>
+    <div style="overflow-x: auto;">
+      <table class="cp-tx-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Metal</th>
+            <th>Form</th>
+            <th>Type</th>
+            <th>Qty</th>
+            <th>Total</th>
+            <th>Profit</th>
+            <th>Payment</th>
+            <th>Compliance</th>
+          </tr>
+        </thead>
+        <tbody id="cpTxBody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="cpTxEmpty" style="display:none;">No transactions for this customer.</div>
+
+    <input type="hidden" id="cpCustomerId">
+  </div>
+</div>
+
 <script>
 /* ═══════════════════════════════════════════════════════════
    STACKTRACK — CORE APPLICATION
@@ -1921,6 +2346,7 @@ async function fetchSpotPrices() {
     recalcDeal();
     updateInventoryPage();
     updatePnlPage();
+    updateDashboard();
   } catch (err) {
     console.warn('Spot price fetch failed:', err.message);
     spotPrices.apiFailed = true;
@@ -1984,6 +2410,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-' + item.dataset.page).classList.add('active');
     // Refresh data on page switch
+    if (item.dataset.page === 'dashboard') updateDashboard();
     if (item.dataset.page === 'transactions') renderTransactions();
     if (item.dataset.page === 'inventory') updateInventoryPage();
     if (item.dataset.page === 'pnl') updatePnlPage();
@@ -2387,6 +2814,7 @@ $('logDealBtn').addEventListener('click', () => {
   clearCustomer();
   recalcDeal();
   checkAlerts();
+  updateDashboard();
 });
 
 // ─── Transaction Log ───
@@ -2464,7 +2892,7 @@ function renderTransactions() {
       <td>${tx.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>'}</td>
       <td>${getFormDisplayLabel(tx.form, tx.coinType)}</td>
       <td><span class="type-badge ${typeClass}">${getTypeLabel(tx.type)}</span></td>
-      <td>${esc(getCustomerName(tx.customerId) || '—')}</td>
+      <td>${tx.customerId && getCustomerName(tx.customerId) ? '<a href="#" onclick="openCustomerProfile(\'' + esc(tx.customerId) + '\');return false;" style="color:var(--gold);text-decoration:none;">' + esc(getCustomerName(tx.customerId)) + '</a>' : '—'}</td>
       <td class="mono">${qtyLabel}</td>
       <td class="mono">${fmt(tx.spot)}</td>
       <td class="mono">${fmt(tx.price)}</td>
@@ -2643,6 +3071,7 @@ $('editSaveBtn').addEventListener('click', () => {
   $('editModal').classList.remove('open');
   renderTransactions();
   checkAlerts();
+  updateDashboard();
 });
 
 // Delete Modal
@@ -2660,6 +3089,7 @@ $('deleteConfirmBtn').addEventListener('click', () => {
   $('deleteModal').classList.remove('open');
   renderTransactions();
   checkAlerts();
+  updateDashboard();
 });
 
 // Close modals on overlay click
@@ -2672,7 +3102,7 @@ $('deleteConfirmBtn').addEventListener('click', () => {
 // Close modals on Escape key
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    ['editModal', 'deleteModal', 'receiptModal', 'addCustomerModal'].forEach(id => {
+    ['editModal', 'deleteModal', 'receiptModal', 'addCustomerModal', 'customerProfileOverlay'].forEach(id => {
       $(id).classList.remove('open');
     });
   }
@@ -3176,6 +3606,7 @@ $('importFileInput').addEventListener('change', (e) => {
       renderContacts();
       populateFilterCustomerSelect();
       checkAlerts();
+      updateDashboard();
       confirm.textContent = 'Data imported!';
       confirm.style.color = 'var(--green)';
       confirm.classList.add('show');
@@ -3310,11 +3741,207 @@ $('addCustomerSaveBtn').addEventListener('click', () => {
   $('addCustomerModal').classList.remove('open');
 });
 
+// ─── Dashboard ───
+function updateDashboard() {
+  // Today's transactions (local date)
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const todayTx = transactions.filter(t => t.date >= todayStart);
+
+  const todayBuys = todayTx.filter(t => t.type === 'buy');
+  const todaySells = todayTx.filter(t => t.type === 'sell' || t.type === 'wholesale');
+  const todayBought = todayBuys.reduce((s, t) => s + t.total, 0);
+  const todaySold = todaySells.reduce((s, t) => s + t.total, 0);
+  const todayProfit = todayTx.reduce((s, t) => s + t.profit, 0);
+
+  $('dashTxCount').textContent = todayTx.length;
+  $('dashBought').textContent = fmt(todayBought);
+  $('dashSold').textContent = fmt(todaySold);
+  $('dashProfit').textContent = (todayProfit >= 0 ? '+' : '-') + fmt(todayProfit);
+  $('dashProfit').className = 'kpi-card-value ' + (todayProfit >= 0 ? 'green' : 'red');
+
+  // Inventory snapshot
+  const { inv, totalGold, totalSilver } = getInventory();
+  const junkOz = (inv.silver.junk || 0);
+  $('dashGoldOz').textContent = fmtOz(totalGold) + ' oz';
+  $('dashGoldVal').textContent = fmt(totalGold * spotPrices.gold);
+  $('dashSilverOz').textContent = fmtOz(totalSilver - junkOz) + ' oz';
+  $('dashSilverVal').textContent = fmt((totalSilver - junkOz) * spotPrices.silver);
+  $('dashJunkOz').textContent = fmtOz(junkOz) + ' oz';
+  $('dashJunkVal').textContent = fmt(junkOz * spotPrices.silver);
+
+  // Compliance action items
+  const unfiled8300 = transactions.filter(t => t.form8300Flag && !t.form8300Reviewed).length;
+  const unfiled1099B = transactions.filter(t => t.form1099BFlag && !t.form1099BFiled).length;
+  const needW9 = customers.filter(c => !c.w9OnFile && transactions.some(t => t.customerId === c.id)).length;
+
+  $('dashUnfiled8300').textContent = unfiled8300;
+  $('dashUnfiled1099B').textContent = unfiled1099B;
+  $('dashNeedW9').textContent = needW9;
+
+  $('dashUnfiled8300').className = 'action-count ' + (unfiled8300 > 0 ? 'red' : 'green');
+  $('dashUnfiled1099B').className = 'action-count ' + (unfiled1099B > 0 ? 'orange' : 'green');
+  $('dashNeedW9').className = 'action-count ' + (needW9 > 0 ? 'orange' : 'green');
+
+  // Recent transactions (last 10)
+  const recent = [...transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
+  const tbody = $('dashRecentBody');
+  const empty = $('dashRecentEmpty');
+
+  if (recent.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  tbody.innerHTML = recent.map(tx => {
+    const d = new Date(tx.date);
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+                    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const typeClass = tx.type === 'buy' ? 'buy' : tx.type === 'sell' ? 'sell' : 'wholesale';
+    const profitClass = tx.profit >= 0 ? 'profit-positive' : 'profit-negative';
+    const qtyLabel = tx.form === 'junk' ? '$' + fmtOz(tx.qty) + ' FV' : fmtOz(tx.qty) + ' oz';
+    const custName = getCustomerName(tx.customerId);
+    const custCell = custName
+      ? `<a href="#" onclick="openCustomerProfile('${esc(tx.customerId)}');return false;" style="color:var(--gold);text-decoration:none;">${esc(custName)}</a>`
+      : '—';
+
+    return `<tr>
+      <td class="mono">${dateStr}</td>
+      <td>${tx.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>'}</td>
+      <td><span class="type-badge ${typeClass}">${getTypeLabel(tx.type)}</span></td>
+      <td>${custCell}</td>
+      <td class="mono">${qtyLabel}</td>
+      <td class="mono">${fmt(tx.total)}</td>
+      <td class="${profitClass}">${(tx.profit >= 0 ? '+' : '-') + fmt(tx.profit)}</td>
+    </tr>`;
+  }).join('');
+}
+
+window.navigateToCompliance = function(filter) {
+  // Navigate to transactions page with compliance filter
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const txNav = document.querySelector('.nav-item[data-page="transactions"]');
+  if (txNav) txNav.classList.add('active');
+  $('page-transactions').classList.add('active');
+
+  if (filter === 'w9-needed') {
+    // Can't filter by W-9 in transactions, just show all compliance
+    $('filterCompliance').value = '';
+  } else {
+    $('filterCompliance').value = filter;
+  }
+  renderTransactions();
+};
+
+// ─── Customer Profile ───
+window.openCustomerProfile = function(customerId) {
+  const customer = customers.find(c => c.id === customerId);
+  if (!customer) return;
+
+  $('cpCustomerId').value = customerId;
+  $('cpName').textContent = customer.name;
+  $('cpEmail').value = customer.email || '';
+  $('cpPhone').value = customer.phone || '';
+  $('cpNotes').value = customer.notes || '';
+  $('cpW9').checked = !!customer.w9OnFile;
+
+  // Compute stats
+  const custTx = transactions.filter(t => t.customerId === customerId);
+  const buys = custTx.filter(t => t.type === 'buy');
+  const sells = custTx.filter(t => t.type === 'sell' || t.type === 'wholesale');
+  const totalBought = buys.reduce((s, t) => s + t.total, 0);
+  const totalSold = sells.reduce((s, t) => s + t.total, 0);
+  const netPnl = custTx.reduce((s, t) => s + t.profit, 0);
+
+  $('cpTotalTx').textContent = custTx.length;
+  $('cpTotalBought').textContent = fmt(totalBought);
+  $('cpTotalSold').textContent = fmt(totalSold);
+  $('cpNetPnl').textContent = (netPnl >= 0 ? '+' : '-') + fmt(netPnl);
+  $('cpNetPnl').className = 'cp-stat-value ' + (netPnl >= 0 ? 'green' : 'red');
+
+  // Compliance summary
+  const flag8300 = custTx.filter(t => t.form8300Flag).length;
+  const flag1099B = custTx.filter(t => t.form1099BFlag).length;
+  let compHtml = '';
+  compHtml += `<div class="cp-compliance-item ${flag8300 > 0 ? 'warn' : 'ok'}"><span class="count">${flag8300}</span> Form 8300 Flags</div>`;
+  compHtml += `<div class="cp-compliance-item ${flag1099B > 0 ? 'info' : 'ok'}"><span class="count">${flag1099B}</span> 1099-B Flags</div>`;
+  compHtml += `<div class="cp-compliance-item ${customer.w9OnFile ? 'ok' : 'info'}">${customer.w9OnFile ? 'W-9 On File' : 'No W-9'}</div>`;
+  $('cpCompliance').innerHTML = compHtml;
+
+  // Transaction history
+  const sorted = [...custTx].sort((a, b) => b.date.localeCompare(a.date));
+  const tbody = $('cpTxBody');
+
+  if (sorted.length === 0) {
+    tbody.innerHTML = '';
+    $('cpTxEmpty').style.display = 'block';
+  } else {
+    $('cpTxEmpty').style.display = 'none';
+    tbody.innerHTML = sorted.map(tx => {
+      const d = new Date(tx.date);
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+                      d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const typeClass = tx.type === 'buy' ? 'buy' : tx.type === 'sell' ? 'sell' : 'wholesale';
+      const profitClass = tx.profit >= 0 ? 'profit-positive' : 'profit-negative';
+      const qtyLabel = tx.form === 'junk' ? '$' + fmtOz(tx.qty) + ' FV' : fmtOz(tx.qty) + ' oz';
+      const badges = (tx.form8300Flag ? '<span class="compliance-badge">8300</span>' : '') +
+                     (tx.form1099BFlag ? '<span class="compliance-badge-1099b">1099-B</span>' : '');
+      return `<tr>
+        <td class="mono">${dateStr}</td>
+        <td>${tx.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>'}</td>
+        <td>${getFormDisplayLabel(tx.form, tx.coinType)}</td>
+        <td><span class="type-badge ${typeClass}">${getTypeLabel(tx.type)}</span></td>
+        <td class="mono">${qtyLabel}</td>
+        <td class="mono">${fmt(tx.total)}</td>
+        <td class="${profitClass}">${(tx.profit >= 0 ? '+' : '-') + fmt(tx.profit)}</td>
+        <td>${tx.payment === 'cash' ? 'Cash' : tx.payment === 'wire' ? 'Wire' : 'Check'}</td>
+        <td>${badges || '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  $('customerProfileOverlay').classList.add('open');
+};
+
+function saveCustomerProfile() {
+  const id = $('cpCustomerId').value;
+  const idx = customers.findIndex(c => c.id === id);
+  if (idx === -1) return;
+
+  customers[idx] = {
+    ...customers[idx],
+    email: $('cpEmail').value.trim() || undefined,
+    phone: $('cpPhone').value.trim() || undefined,
+    notes: $('cpNotes').value.trim() || undefined,
+    w9OnFile: $('cpW9').checked
+  };
+
+  Store.set('customers', customers);
+  populateFilterCustomerSelect();
+
+  // Refresh the profile view
+  openCustomerProfile(id);
+}
+
+function closeCustomerProfile() {
+  $('customerProfileOverlay').classList.remove('open');
+}
+
+$('cpSaveBtn').addEventListener('click', saveCustomerProfile);
+$('cpCloseBtn').addEventListener('click', closeCustomerProfile);
+$('customerProfileOverlay').addEventListener('click', (e) => {
+  if (e.target === $('customerProfileOverlay')) closeCustomerProfile();
+});
+
 // ─── Init ───
 loadSettings();
 renderContacts();
 populateFilterCustomerSelect();
 checkAlerts();
+updateDashboard();
 // Spot prices and calculator update after first API fetch completes
 </script>
 </body>
