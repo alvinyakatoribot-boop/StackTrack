@@ -1488,6 +1488,88 @@ tr.compliance-row-flagged.compliance-row-1099b {
   .cp-stats-grid { grid-template-columns: 1fr 1fr; }
   .cp-fields { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════ */
+/* CUSTOMERS PAGE                         */
+/* ═══════════════════════════════════════ */
+.customers-search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+.customers-search-bar input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--sans);
+  outline: none;
+  transition: border-color var(--transition);
+}
+.customers-search-bar input:focus {
+  border-color: var(--gold);
+}
+.customers-search-bar button {
+  background: var(--gold);
+  color: #0a0a0a;
+  border: none;
+  border-radius: var(--radius);
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity var(--transition);
+}
+.customers-search-bar button:hover { opacity: 0.85; }
+.customers-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.customers-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.customers-table td {
+  padding: 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+}
+.customer-row {
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.customer-row:hover {
+  background: var(--bg-secondary);
+}
+.w9-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.w9-badge.on-file {
+  background: rgba(76, 175, 80, 0.15);
+  color: var(--green);
+}
+.w9-badge.missing {
+  background: rgba(255, 152, 0, 0.15);
+  color: #FF9800;
+}
 </style>
 </head>
 <body>
@@ -1529,6 +1611,7 @@ tr.compliance-row-flagged.compliance-row-1099b {
   <div class="nav-item" data-page="calculator">Calculator</div>
   <div class="nav-item" data-page="transactions">Transactions</div>
   <div class="nav-item" data-page="inventory">Inventory</div>
+  <div class="nav-item" data-page="customers">Customers</div>
   <div class="nav-item" data-page="pnl">P&L</div>
   <div class="nav-item" data-page="settings">Settings</div>
 </nav>
@@ -1861,6 +1944,32 @@ tr.compliance-row-flagged.compliance-row-1099b {
       </div>
       <div class="contacts-list" id="contactsList"></div>
       <div class="empty-state" id="contactsEmpty" style="padding:20px;">No wholesale contacts saved yet.</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ CUSTOMERS PAGE ═══════════════ -->
+  <div class="page" id="page-customers">
+    <div class="customers-search-bar">
+      <input type="text" id="customersSearchInput" placeholder="Search by name or phone...">
+      <button id="customersAddBtn">Add Customer</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Customer Directory</div>
+      <table class="customers-table" id="customersTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>W-9</th>
+            <th>Transactions</th>
+            <th>Total Volume</th>
+            <th>8300 Flags</th>
+            <th>1099-B Flags</th>
+          </tr>
+        </thead>
+        <tbody id="customersTableBody"></tbody>
+      </table>
+      <div class="empty-state" id="customersEmpty" style="display:none;">No customers yet. Use the Calculator to add your first customer.</div>
     </div>
   </div>
 
@@ -2494,6 +2603,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     if (item.dataset.page === 'dashboard') updateDashboard();
     if (item.dataset.page === 'transactions') renderTransactions();
     if (item.dataset.page === 'inventory') updateInventoryPage();
+    if (item.dataset.page === 'customers') renderCustomersPage();
     if (item.dataset.page === 'pnl') updatePnlPage();
   });
 });
@@ -3858,6 +3968,76 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// ─── Customers Page ───
+function renderCustomersPage() {
+  const query = ($('customersSearchInput') ? $('customersSearchInput').value : '').toLowerCase().trim();
+  const filtered = customers
+    .filter(c => {
+      if (!query) return true;
+      return (c.name || '').toLowerCase().includes(query) ||
+             (c.phone || '').toLowerCase().includes(query);
+    })
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  const tbody = $('customersTableBody');
+  const emptyEl = $('customersEmpty');
+  const tableEl = $('customersTable');
+
+  if (!tbody) return;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    tableEl.style.display = 'none';
+    emptyEl.style.display = 'block';
+  } else {
+    tableEl.style.display = '';
+    emptyEl.style.display = 'none';
+    tbody.innerHTML = filtered.map(c => {
+      const custTx = transactions.filter(t => t.customerId === c.id);
+      const totalVolume = custTx.reduce((s, t) => s + t.total, 0);
+      const flag8300 = custTx.filter(t => t.form8300Flag).length;
+      const flag1099B = custTx.filter(t => t.form1099BFlag).length;
+      const w9Class = c.w9OnFile ? 'on-file' : 'missing';
+      const w9Label = c.w9OnFile ? 'On File' : 'Missing';
+      return `<tr class="customer-row" data-customer-id="${esc(c.id)}">
+        <td>${esc(c.name)}</td>
+        <td>${esc(c.phone || '—')}</td>
+        <td><span class="w9-badge ${w9Class}">${w9Label}</span></td>
+        <td>${custTx.length}</td>
+        <td class="mono">${fmt(totalVolume)}</td>
+        <td>${flag8300}</td>
+        <td>${flag1099B}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+// Customer row click → open profile
+document.addEventListener('click', (e) => {
+  const row = e.target.closest('.customer-row');
+  if (row && row.dataset.customerId) {
+    openCustomerProfile(row.dataset.customerId);
+  }
+});
+
+// Customers page search
+if ($('customersSearchInput')) {
+  $('customersSearchInput').addEventListener('input', renderCustomersPage);
+}
+
+// Customers page add button → open existing add customer modal
+if ($('customersAddBtn')) {
+  $('customersAddBtn').addEventListener('click', () => {
+    const nameInput = $('newCustomerName');
+    nameInput.value = '';
+    nameInput.removeAttribute('readonly');
+    $('newCustomerPhone').value = '';
+    $('newCustomerNotes').value = '';
+    $('newCustomerW9').checked = false;
+    $('addCustomerModal').classList.add('open');
+  });
+}
+
 // ─── Add Customer Modal ───
 $('addCustomerCancelBtn').addEventListener('click', () => {
   $('addCustomerModal').classList.remove('open');
@@ -3878,6 +4058,7 @@ $('addCustomerSaveBtn').addEventListener('click', () => {
   customers.push(newCustomer);
   Store.set('customers', customers);
   populateFilterCustomerSelect();
+  renderCustomersPage();
 
   // Auto-select the new customer on the calculator
   selectCustomer(newCustomer.id);
@@ -4064,6 +4245,7 @@ function saveCustomerProfile() {
 
   Store.set('customers', customers);
   populateFilterCustomerSelect();
+  renderCustomersPage();
 
   // Refresh the profile view
   openCustomerProfile(id);
