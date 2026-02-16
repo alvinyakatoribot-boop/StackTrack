@@ -7,7 +7,8 @@ const TEST_DATA = {
     buyDiscCoins: 3, buyDiscBars: 5, buyDiscScrap: 8,
     whDiscCoins: 1, whDiscBars: 2, whDiscScrap: 3,
     coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0 },
-    junkDivisor: 1.3, junkMultOverride: null,
+    junkMultiplier: 0.715, junkMultOverride: null,
+    sellPremJunk: 7, buyDiscJunk: 3, whDiscJunk: 1,
     threshGold: 10, threshSilver: 500,
   },
   transactions: [
@@ -219,34 +220,34 @@ test.describe('Settings — Save validation', () => {
     expect(saved.buyDiscBars).toBe(0);
   });
 
-  test('falls back to 1.3 when junkDivisor is zero', async ({ page }) => {
-    await page.fill('#junkDivisor', '0');
+  test('falls back to 0.715 when junkMultiplier is zero', async ({ page }) => {
+    await page.fill('#junkMultiplier', '0');
     await page.click('#saveSettingsBtn');
 
     const saved = await page.evaluate(() =>
       JSON.parse(localStorage.getItem('st_settings')),
     );
-    expect(saved.junkDivisor).toBe(1.3);
+    expect(saved.junkMultiplier).toBe(0.715);
   });
 
-  test('falls back to 1.3 when junkDivisor is negative', async ({ page }) => {
-    await page.fill('#junkDivisor', '-2');
+  test('falls back to 0.715 when junkMultiplier is negative', async ({ page }) => {
+    await page.fill('#junkMultiplier', '-2');
     await page.click('#saveSettingsBtn');
 
     const saved = await page.evaluate(() =>
       JSON.parse(localStorage.getItem('st_settings')),
     );
-    expect(saved.junkDivisor).toBe(1.3);
+    expect(saved.junkMultiplier).toBe(0.715);
   });
 
-  test('accepts valid positive junkDivisor', async ({ page }) => {
-    await page.fill('#junkDivisor', '1.5');
+  test('accepts valid positive junkMultiplier', async ({ page }) => {
+    await page.fill('#junkMultiplier', '0.8');
     await page.click('#saveSettingsBtn');
 
     const saved = await page.evaluate(() =>
       JSON.parse(localStorage.getItem('st_settings')),
     );
-    expect(saved.junkDivisor).toBe(1.5);
+    expect(saved.junkMultiplier).toBe(0.8);
   });
 
   test('clamps negative threshold values to zero', async ({ page }) => {
@@ -274,15 +275,15 @@ test.describe('Settings — Save validation', () => {
 
 // ─── Junk Silver Inventory ───────────────────────────────────────────
 
-test.describe('Junk silver inventory uses configurable divisor', () => {
-  test('inventory reflects junkDivisor setting', async ({ page }) => {
+test.describe('Junk silver inventory uses configurable multiplier', () => {
+  test('inventory reflects junkMultiplier setting', async ({ page }) => {
     await page.goto('/');
     await mockSpotPrices(page, { gold: 2500, silver: 32 });
 
-    // Seed with a junk silver transaction and a custom divisor
+    // Seed with a junk silver transaction and a custom multiplier
     const data = {
       ...TEST_DATA,
-      settings: { ...TEST_DATA.settings, junkDivisor: 1.4 },
+      settings: { ...TEST_DATA.settings, junkMultiplier: 0.715 },
       transactions: [
         {
           id: 'tx-junk-1',
@@ -308,15 +309,118 @@ test.describe('Junk silver inventory uses configurable divisor', () => {
     }, data);
     await page.reload();
 
-    // Read the junk oz value from inventory via JS (14 / 1.4 = 10)
+    // Read the junk oz value from inventory via JS (14 * 0.715 = 10.01)
     const junkOz = await page.evaluate(() => {
       const settings = JSON.parse(localStorage.getItem('st_settings'));
       const txs = JSON.parse(localStorage.getItem('st_transactions'));
       return txs.reduce((sum, tx) => {
-        if (tx.form === 'junk' && tx.type === 'buy') return sum + tx.qty / settings.junkDivisor;
+        if (tx.form === 'junk' && tx.type === 'buy') return sum + tx.qty * settings.junkMultiplier;
         return sum;
       }, 0);
     });
-    expect(junkOz).toBeCloseTo(10, 5);
+    expect(junkOz).toBeCloseTo(14 * 0.715, 5);
+  });
+});
+
+// ─── Scrap Karat Calculator ─────────────────────────────────────────
+
+test.describe('Scrap karat calculator', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await mockSpotPrices(page);
+    await seedAndReload(page);
+    await page.click('[data-page="calculator"]');
+  });
+
+  test('selecting scrap form shows purity and weight unit dropdowns', async ({ page }) => {
+    await page.selectOption('#calcForm', 'scrap');
+    await expect(page.locator('#scrapPurityGroup')).toBeVisible();
+    await expect(page.locator('#scrapWeightUnitGroup')).toBeVisible();
+  });
+
+  test('switching metal updates purity options (gold vs silver)', async ({ page }) => {
+    await page.selectOption('#calcForm', 'scrap');
+
+    // Gold should show karat options
+    await page.selectOption('#calcMetal', 'gold');
+    const goldOptions = await page.locator('#scrapPurity option').allTextContents();
+    expect(goldOptions.some(o => o.includes('14K'))).toBe(true);
+    expect(goldOptions.some(o => o.includes('Sterling'))).toBe(false);
+
+    // Silver should show silver purity options
+    await page.selectOption('#calcMetal', 'silver');
+    const silverOptions = await page.locator('#scrapPurity option').allTextContents();
+    expect(silverOptions.some(o => o.includes('Sterling'))).toBe(true);
+    expect(silverOptions.some(o => o.includes('14K'))).toBe(false);
+  });
+
+  test('quantity label shows fine troy oz conversion', async ({ page }) => {
+    await page.selectOption('#calcForm', 'scrap');
+    await page.selectOption('#calcMetal', 'gold');
+    await page.selectOption('#scrapPurity', '14k');
+    await page.selectOption('#scrapWeightUnit', 'g');
+    await page.fill('#calcQty', '31.1035');
+
+    // 31.1035g = 1 troy oz * 14/24 fineness ≈ 0.583 fine toz
+    const label = await page.locator('#qtyLabel').textContent();
+    expect(label).toContain('fine toz');
+    expect(label).toContain('0.583');
+  });
+
+  test('logging 14K gold scrap stores correct fine oz, purity, and rawQty', async ({ page }) => {
+    await page.selectOption('#calcForm', 'scrap');
+    await page.selectOption('#calcMetal', 'gold');
+    await page.selectOption('#scrapPurity', '14k');
+    await page.selectOption('#scrapWeightUnit', 'g');
+    await page.fill('#calcQty', '15.5');
+    await page.click('#logDealBtn');
+
+    // Wait for the transaction to be logged
+    await page.waitForFunction(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions'));
+      return txs.length > 1;
+    }, { timeout: 3000 });
+
+    const tx = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions'));
+      return txs.find(t => t.form === 'scrap');
+    });
+
+    // 15.5g → troy oz → fine oz: 15.5 / 31.1035 * (14/24)
+    const expectedFineOz = 15.5 / 31.1035 * (14 / 24);
+    expect(tx.qty).toBeCloseTo(expectedFineOz, 3);
+    expect(tx.scrapPurity).toBe('14k');
+    expect(tx.scrapWeightUnit).toBe('g');
+    expect(tx.rawQty).toBe(15.5);
+  });
+
+  test('inventory correctly reflects fine oz for scrap', async ({ page }) => {
+    await page.selectOption('#calcForm', 'scrap');
+    await page.selectOption('#calcMetal', 'gold');
+    await page.selectOption('#scrapPurity', '14k');
+    await page.selectOption('#scrapWeightUnit', 'g');
+    await page.fill('#calcQty', '31.1035');
+    await page.click('#logDealBtn');
+
+    const inv = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions'));
+      let scrapOz = 0;
+      txs.forEach(tx => {
+        if (tx.form === 'scrap' && tx.type === 'buy') scrapOz += tx.qty;
+      });
+      return scrapOz;
+    });
+
+    // 31.1035g = 1 toz * 14/24 fineness
+    expect(inv).toBeCloseTo(14 / 24, 3);
+  });
+
+  test('purity dropdown hidden when switching away from scrap', async ({ page }) => {
+    await page.selectOption('#calcForm', 'scrap');
+    await expect(page.locator('#scrapPurityGroup')).toBeVisible();
+
+    await page.selectOption('#calcForm', 'bars');
+    await expect(page.locator('#scrapPurityGroup')).not.toBeVisible();
+    await expect(page.locator('#scrapWeightUnitGroup')).not.toBeVisible();
   });
 });
