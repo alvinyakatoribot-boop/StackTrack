@@ -1140,6 +1140,52 @@ tr.compliance-row-flagged {
 }
 
 /* ═══════════════════════════════════════ */
+/* COMPLIANCE (1099-B)                     */
+/* ═══════════════════════════════════════ */
+.compliance-badge-1099b {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(255, 152, 0, 0.15);
+  color: #FF9800;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+tr.compliance-row-1099b {
+  border-left: 3px solid #FF9800;
+  background: rgba(255, 152, 0, 0.04);
+}
+
+/* When both 8300 and 1099-B, red border takes priority */
+tr.compliance-row-flagged.compliance-row-1099b {
+  border-left: 3px solid var(--red);
+}
+
+.compliance-warning-1099b {
+  background: rgba(33, 150, 243, 0.1);
+  border: 1px solid #2196F3;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2196F3;
+  display: none;
+  gap: 8px;
+  align-items: flex-start;
+  line-height: 1.4;
+  margin-top: 8px;
+}
+
+.compliance-warning-1099b.visible { display: flex; }
+
+.compliance-warning-1099b .compliance-icon { font-size: 16px; flex-shrink: 0; }
+
+/* ═══════════════════════════════════════ */
 /* RESPONSIVE                             */
 /* ═══════════════════════════════════════ */
 @media (max-width: 768px) {
@@ -1309,6 +1355,13 @@ tr.compliance-row-flagged {
             <div id="cashWarningCustomer" style="font-size:12px;margin-top:4px;color:#e0a000;display:none;">Customer required for compliance</div>
           </div>
         </div>
+        <div class="compliance-warning-1099b" id="warning1099B">
+          <span class="compliance-icon">📋</span>
+          <div>
+            <div id="warning1099BText">IRS Form 1099-B reporting required for this buy-back</div>
+            <div id="warning1099BW9" style="font-size:12px;margin-top:4px;color:#1976D2;display:none;">W-9 not on file for this customer — collect before completing transaction</div>
+          </div>
+        </div>
         <button class="log-deal-btn" id="logDealBtn" disabled>Log This Deal</button>
         <div class="deal-logged-msg" id="dealLoggedMsg">Deal logged successfully!</div>
       </div>
@@ -1366,9 +1419,13 @@ tr.compliance-row-flagged {
           <label class="form-label">Compliance</label>
           <select class="form-select" id="filterCompliance">
             <option value="">All</option>
-            <option value="flagged">Flagged</option>
-            <option value="needs-review">Needs Review</option>
-            <option value="reviewed">Reviewed</option>
+            <option value="flagged">8300 Flagged</option>
+            <option value="needs-review">8300 Needs Review</option>
+            <option value="reviewed">8300 Reviewed</option>
+            <option value="1099b-flagged">1099-B Flagged</option>
+            <option value="1099b-needs-filing">1099-B Needs Filing</option>
+            <option value="1099b-filed">1099-B Filed</option>
+            <option value="any-compliance">Any Compliance Flag</option>
           </select>
         </div>
         <button class="filter-btn" id="clearFiltersBtn">Clear</button>
@@ -1707,6 +1764,12 @@ tr.compliance-row-flagged {
           Marked as reviewed (Form 8300 filed)
         </label>
       </div>
+      <div class="form-group" id="editForm1099BGroup" style="display:none;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#FF9800;cursor:pointer;">
+          <input type="checkbox" id="editForm1099BFiled">
+          Marked as filed (1099-B submitted)
+        </label>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="modal-btn secondary" id="editCancelBtn">Cancel</button>
@@ -1755,6 +1818,12 @@ tr.compliance-row-flagged {
       <div class="form-group">
         <label class="form-label">Notes</label>
         <input class="form-input" type="text" id="newCustomerNotes" placeholder="Optional notes">
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-primary);cursor:pointer;">
+          <input type="checkbox" id="newCustomerW9">
+          W-9 on file
+        </label>
       </div>
     </div>
     <div class="modal-actions">
@@ -1963,6 +2032,77 @@ function get24HourCashTotal(customerId, referenceDate, excludeTxId) {
   }, 0);
 }
 
+// ─── 1099-B Compliance (Dealer Buy-Backs) ───
+function is1099BReportableProduct(metal, form, coinType) {
+  // Gold bars/rounds (.995+)
+  if (metal === 'gold' && (form === 'bars' || form === 'rounds')) return true;
+  // Silver bars/rounds (.999+)
+  if (metal === 'silver' && (form === 'bars' || form === 'rounds')) return true;
+  // Gold Maple Leafs
+  if (metal === 'gold' && form === 'coins' && coinType === 'maples') return true;
+  // Gold Krugerrands
+  if (metal === 'gold' && form === 'coins' && coinType === 'krugerrands') return true;
+  // 90% Junk Silver
+  if (form === 'junk') return true;
+  // NOT reportable: American Eagles, Britannias, Philharmonics, scrap
+  return false;
+}
+
+function get1099BThreshold(metal, form, coinType) {
+  if (metal === 'gold' && (form === 'bars' || form === 'rounds')) return 32.15; // 1 kilo
+  if (metal === 'silver' && (form === 'bars' || form === 'rounds')) return 1000;
+  if (metal === 'gold' && form === 'coins' && coinType === 'maples') return 25;
+  if (metal === 'gold' && form === 'coins' && coinType === 'krugerrands') return 25;
+  if (form === 'junk') return 1000; // $1,000 face value
+  return Infinity;
+}
+
+function get1099BProductKey(metal, form, coinType) {
+  if (form === 'junk') return 'junk';
+  if (form === 'coins' && coinType) return metal + ':coins:' + coinType;
+  return metal + ':' + form;
+}
+
+function get24Hour1099BQty(customerId, metal, form, coinType, referenceDate, excludeTxId) {
+  if (!customerId) return 0;
+  const key = get1099BProductKey(metal, form, coinType);
+  const refMs = new Date(referenceDate).getTime();
+  const windowMs = 86400000;
+  return transactions.reduce((sum, t) => {
+    if (excludeTxId && t.id === excludeTxId) return sum;
+    if (t.customerId !== customerId) return sum;
+    if (t.type !== 'buy') return sum;
+    if (get1099BProductKey(t.metal, t.form, t.coinType) !== key) return sum;
+    if (Math.abs(new Date(t.date).getTime() - refMs) > windowMs) return sum;
+    return sum + t.qty;
+  }, 0);
+}
+
+function check1099B(tx, excludeTxId) {
+  // Only applies to buy transactions (dealer buying from customer)
+  if (tx.type !== 'buy') return { reportable: false, reason: '' };
+  if (!is1099BReportableProduct(tx.metal, tx.form, tx.coinType)) return { reportable: false, reason: '' };
+
+  const threshold = get1099BThreshold(tx.metal, tx.form, tx.coinType);
+  const unit = tx.form === 'junk' ? 'face value' : 'oz';
+
+  // Single transaction check
+  if (tx.qty >= threshold) {
+    return { reportable: true, reason: `Single buy of ${tx.qty} ${unit} meets ${threshold} ${unit} threshold` };
+  }
+
+  // 24-hour aggregation check
+  if (tx.customerId) {
+    const prior = get24Hour1099BQty(tx.customerId, tx.metal, tx.form, tx.coinType, tx.date, excludeTxId);
+    const combined = prior + tx.qty;
+    if (combined >= threshold) {
+      return { reportable: true, reason: `Combined 24hr buy-back qty (${combined.toFixed(3)} ${unit}) meets ${threshold} ${unit} threshold` };
+    }
+  }
+
+  return { reportable: false, reason: '' };
+}
+
 // ─── Pricing Engine ───
 function getMargin(txType, form, coinType) {
   let base = 0;
@@ -2116,6 +2256,36 @@ function recalcDeal() {
   } else {
     cashWarning.classList.remove('visible');
   }
+
+  // 1099-B compliance warning (dealer buy-backs)
+  const warning1099B = $('warning1099B');
+  if (calcTxType === 'buy' && qty > 0 && is1099BReportableProduct(metal, form, coinType)) {
+    const threshold = get1099BThreshold(metal, form, coinType);
+    const unit = form === 'junk' ? 'face value' : 'oz';
+    const prior24h = customerId ? get24Hour1099BQty(customerId, metal, form, coinType, new Date().toISOString()) : 0;
+    const combinedQty = prior24h + qty;
+
+    if (combinedQty >= threshold) {
+      warning1099B.classList.add('visible');
+      if (prior24h > 0 && qty < threshold) {
+        $('warning1099BText').textContent = 'Combined 24hr buy-back qty: ' + combinedQty.toFixed(3) + ' ' + unit + ' (threshold: ' + threshold + ' ' + unit + ') — IRS Form 1099-B reporting required';
+      } else {
+        $('warning1099BText').textContent = 'Buy-back of ' + qty + ' ' + unit + ' meets ' + threshold + ' ' + unit + ' threshold — IRS Form 1099-B reporting required';
+      }
+      // W-9 warning
+      if (customerId) {
+        const cust = customers.find(c => c.id === customerId);
+        $('warning1099BW9').style.display = (cust && !cust.w9OnFile) ? 'block' : 'none';
+      } else {
+        $('warning1099BW9').style.display = 'block';
+        $('warning1099BW9').textContent = 'Customer required — W-9 must be on file for 1099-B reporting';
+      }
+    } else {
+      warning1099B.classList.remove('visible');
+    }
+  } else {
+    warning1099B.classList.remove('visible');
+  }
 }
 
 // ─── Log Deal ───
@@ -2183,6 +2353,23 @@ $('logDealBtn').addEventListener('click', () => {
     }
   }
 
+  // 1099-B compliance flag (dealer buy-backs)
+  const result1099B = check1099B(tx);
+  if (result1099B.reportable) {
+    tx.form1099BFlag = true;
+    // If aggregated, retroactively flag all related buy transactions in 24hr window
+    if (tx.customerId) {
+      const key = get1099BProductKey(tx.metal, tx.form, tx.coinType);
+      transactions.forEach(t => {
+        if (t.customerId === tx.customerId && t.type === 'buy' &&
+            get1099BProductKey(t.metal, t.form, t.coinType) === key &&
+            Math.abs(new Date(t.date).getTime() - new Date(tx.date).getTime()) <= 86400000) {
+          t.form1099BFlag = true;
+        }
+      });
+    }
+  }
+
   transactions.unshift(tx);
   Store.set('transactions', transactions);
 
@@ -2225,6 +2412,10 @@ function getFilteredTransactions() {
   if (compliance === 'flagged') list = list.filter(t => t.form8300Flag);
   else if (compliance === 'needs-review') list = list.filter(t => t.form8300Flag && !t.form8300Reviewed);
   else if (compliance === 'reviewed') list = list.filter(t => t.form8300Flag && t.form8300Reviewed);
+  else if (compliance === '1099b-flagged') list = list.filter(t => t.form1099BFlag);
+  else if (compliance === '1099b-needs-filing') list = list.filter(t => t.form1099BFlag && !t.form1099BFiled);
+  else if (compliance === '1099b-filed') list = list.filter(t => t.form1099BFlag && t.form1099BFiled);
+  else if (compliance === 'any-compliance') list = list.filter(t => t.form8300Flag || t.form1099BFlag);
 
   list.sort((a, b) => {
     let va, vb;
@@ -2260,8 +2451,13 @@ function renderTransactions() {
     const profitClass = tx.profit >= 0 ? 'profit-positive' : 'profit-negative';
     const qtyLabel = tx.form === 'junk' ? '$' + fmtOz(tx.qty) + ' FV' : fmtOz(tx.qty) + ' oz';
 
-    const flagBadge = tx.form8300Flag ? '<span class="compliance-badge">8300</span>' : '';
-    const rowClass = tx.form8300Flag ? ' class="compliance-row-flagged"' : '';
+    const badge8300 = tx.form8300Flag ? '<span class="compliance-badge">8300</span>' : '';
+    const badge1099B = tx.form1099BFlag ? '<span class="compliance-badge-1099b">1099-B</span>' : '';
+    const flagBadge = badge8300 + badge1099B;
+    const rowClasses = [];
+    if (tx.form8300Flag) rowClasses.push('compliance-row-flagged');
+    if (tx.form1099BFlag) rowClasses.push('compliance-row-1099b');
+    const rowClass = rowClasses.length ? ` class="${rowClasses.join(' ')}"` : '';
 
     return `<tr${rowClass}>
       <td class="mono">${dateStr}</td>
@@ -2315,7 +2511,7 @@ $('exportCsvBtn').addEventListener('click', () => {
   const list = getFilteredTransactions();
   if (list.length === 0) return;
 
-  const headers = ['Date', 'Metal', 'Form', 'Coin Type', 'Type', 'Customer', 'Quantity', 'Spot Price', 'Our Price', 'Total', 'Payment', 'Profit', 'Form 8300', 'Notes'];
+  const headers = ['Date', 'Metal', 'Form', 'Coin Type', 'Type', 'Customer', 'Quantity', 'Spot Price', 'Our Price', 'Total', 'Payment', 'Profit', 'Form 8300', '1099-B', 'Notes'];
   const rows = list.map(tx => [
     new Date(tx.date).toLocaleString(),
     tx.metal, getFormLabel(tx.form), tx.coinType ? getCoinTypeLabel(tx.coinType) : '',
@@ -2323,6 +2519,7 @@ $('exportCsvBtn').addEventListener('click', () => {
     getCustomerName(tx.customerId),
     tx.qty, tx.spot, tx.price, tx.total, tx.payment, tx.profit,
     tx.form8300Flag ? (tx.form8300Reviewed ? 'Reviewed' : 'Flagged') : '',
+    tx.form1099BFlag ? (tx.form1099BFiled ? 'Filed' : 'Flagged') : '',
     tx.notes || ''
   ]);
 
@@ -2360,6 +2557,14 @@ window.openEditModal = function(id) {
   } else {
     $('editForm8300Group').style.display = 'none';
     $('editForm8300Reviewed').checked = false;
+  }
+  // 1099-B filed toggle
+  if (tx.form1099BFlag) {
+    $('editForm1099BGroup').style.display = '';
+    $('editForm1099BFiled').checked = !!tx.form1099BFiled;
+  } else {
+    $('editForm1099BGroup').style.display = 'none';
+    $('editForm1099BFiled').checked = false;
   }
   $('editModal').classList.add('open');
 };
@@ -2403,6 +2608,20 @@ $('editSaveBtn').addEventListener('click', () => {
   }
   const existingFlag = transactions[idx].form8300Flag;
 
+  // 1099-B recalculation on edit
+  const edited1099BTx = {
+    type,
+    metal: $('editMetal').value,
+    form: editedForm,
+    coinType: editedCoinType,
+    qty,
+    customerId: editedCustomerId,
+    date: txDate
+  };
+  const result1099B = check1099B(edited1099BTx, txId);
+  const edited1099BFlag = result1099B.reportable;
+  const existing1099BFlag = transactions[idx].form1099BFlag;
+
   transactions[idx] = {
     ...transactions[idx],
     metal: $('editMetal').value,
@@ -2415,7 +2634,9 @@ $('editSaveBtn').addEventListener('click', () => {
     customerId: editedCustomerId,
     notes: $('editNotes').value.trim() || undefined,
     form8300Flag: editedFlag || undefined,
-    form8300Reviewed: editedFlag && existingFlag ? $('editForm8300Reviewed').checked : undefined
+    form8300Reviewed: editedFlag && existingFlag ? $('editForm8300Reviewed').checked : undefined,
+    form1099BFlag: edited1099BFlag || undefined,
+    form1099BFiled: edited1099BFlag && existing1099BFlag ? $('editForm1099BFiled').checked : undefined
   };
 
   Store.set('transactions', transactions);
@@ -2510,6 +2731,7 @@ function generateReceipt(tx) {
       <div class="receipt-total-value">${fmt(tx.total)}${tx.form8300Flag ? '<span class="compliance-indicator"></span>' : ''}</div>
     </div>
     ${tx.form8300Flag ? `<div style="background:#fff3e0;border:1px solid #FFB300;border-radius:4px;padding:8px 10px;font-size:11px;color:#8d6e00;text-align:center;margin-bottom:12px;font-weight:600;">NOTICE: This cash transaction meets the $10,000 threshold for IRS Form 8300 reporting.</div>` : ''}
+    ${tx.form1099BFlag ? `<div style="background:#e3f2fd;border:1px solid #2196F3;border-radius:4px;padding:8px 10px;font-size:11px;color:#1565C0;text-align:center;margin-bottom:12px;font-weight:600;">NOTICE: This buy-back transaction is reportable under IRS Form 1099-B. A W-9 is required from the seller.</div>` : ''}
     <div class="receipt-footer">
       Thank you for your business!<br>
       Powered by StackTrack
@@ -2732,6 +2954,12 @@ function checkAlerts() {
     alerts.push(`${needsReviewCount} transaction(s) flagged for Form 8300 review`);
   }
 
+  // 1099-B compliance alerts
+  const needs1099BFiling = transactions.filter(t => t.form1099BFlag && !t.form1099BFiled).length;
+  if (needs1099BFiling > 0) {
+    alerts.push(`${needs1099BFiling} transaction(s) require 1099-B filing`);
+  }
+
   // Retroactive 24-hour aggregation detection
   const cashTxByCustomer = {};
   transactions.forEach(t => {
@@ -2764,6 +2992,43 @@ function checkAlerts() {
     $('bulkFlagBtn').style.display = '';
   } else {
     $('bulkFlagBtn').style.display = 'none';
+  }
+
+  // Retroactive 1099-B 24-hour aggregation detection
+  const buyTxByCustomerProduct = {};
+  transactions.forEach(t => {
+    if (t.type === 'buy' && t.customerId && is1099BReportableProduct(t.metal, t.form, t.coinType)) {
+      const groupKey = t.customerId + '|' + get1099BProductKey(t.metal, t.form, t.coinType);
+      if (!buyTxByCustomerProduct[groupKey]) buyTxByCustomerProduct[groupKey] = [];
+      buyTxByCustomerProduct[groupKey].push(t);
+    }
+  });
+  const unflagged1099BCustomers = [];
+  Object.entries(buyTxByCustomerProduct).forEach(([groupKey, txs]) => {
+    const cid = groupKey.split('|')[0];
+    const productKey = groupKey.split('|')[1];
+    // Derive threshold from first tx in group
+    const sampleTx = txs[0];
+    const threshold = get1099BThreshold(sampleTx.metal, sampleTx.form, sampleTx.coinType);
+    for (let i = 0; i < txs.length; i++) {
+      const refMs = new Date(txs[i].date).getTime();
+      let windowQty = 0;
+      let hasUnflagged = false;
+      for (let j = 0; j < txs.length; j++) {
+        if (Math.abs(new Date(txs[j].date).getTime() - refMs) <= 86400000) {
+          windowQty += txs[j].qty;
+          if (!txs[j].form1099BFlag) hasUnflagged = true;
+        }
+      }
+      if (windowQty >= threshold && hasUnflagged) {
+        const name = getCustomerName(cid);
+        if (name && !unflagged1099BCustomers.includes(name)) unflagged1099BCustomers.push(name);
+        break;
+      }
+    }
+  });
+  if (unflagged1099BCustomers.length > 0) {
+    alerts.push(`${unflagged1099BCustomers.length} un-flagged 1099-B aggregation(s) detected for: ${unflagged1099BCustomers.join(', ')}`);
   }
 
   const banner = $('alertBanner');
@@ -2975,8 +3240,9 @@ customerSearchInput.addEventListener('input', () => {
 
   let html = matches.map(c => {
     const details = [c.phone, c.notes].filter(Boolean).join(' · ');
+    const w9Badge = c.w9OnFile ? '<span style="color:#4CAF50;font-size:10px;font-weight:700;margin-left:6px;">W-9 ✓</span>' : '<span style="color:#FF9800;font-size:10px;font-weight:700;margin-left:6px;">No W-9</span>';
     return `<div class="customer-dropdown-item" data-id="${esc(c.id)}">
-      <div class="customer-item-name">${esc(c.name)}</div>
+      <div class="customer-item-name">${esc(c.name)}${w9Badge}</div>
       ${details ? `<div class="customer-item-details">${esc(details)}</div>` : ''}
     </div>`;
   }).join('');
@@ -3031,7 +3297,8 @@ $('addCustomerSaveBtn').addEventListener('click', () => {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name,
     phone: $('newCustomerPhone').value.trim(),
-    notes: $('newCustomerNotes').value.trim()
+    notes: $('newCustomerNotes').value.trim(),
+    w9OnFile: $('newCustomerW9').checked
   };
 
   customers.push(newCustomer);
