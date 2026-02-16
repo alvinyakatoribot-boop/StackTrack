@@ -1851,6 +1851,18 @@ tr.compliance-row-flagged.compliance-row-1099b {
               <option value="pre33_250">$2.50 Quarter Eagle</option>
             </select>
           </div>
+          <div class="form-group" id="scrapPurityGroup" style="display:none">
+            <label class="form-label">Purity</label>
+            <select class="form-select" id="scrapPurity"></select>
+          </div>
+          <div class="form-group" id="scrapWeightUnitGroup" style="display:none">
+            <label class="form-label">Weight Unit</label>
+            <select class="form-select" id="scrapWeightUnit">
+              <option value="g">Grams</option>
+              <option value="dwt">Pennyweight (dwt)</option>
+              <option value="ozt">Troy Oz</option>
+            </select>
+          </div>
           <div class="form-group full-width">
             <label class="form-label">Transaction Type</label>
             <div class="segment-control" id="calcType">
@@ -2258,12 +2270,24 @@ tr.compliance-row-flagged.compliance-row-1099b {
         <div class="settings-section-title">Junk Silver</div>
         <div class="settings-grid">
           <div class="form-group">
-            <label class="form-label">Divisor (default 1.3)</label>
-            <input class="form-input" type="number" id="junkDivisor" step="0.01" value="1.3">
+            <label class="form-label">Silver Weight per $1 FV</label>
+            <input class="form-input" type="number" id="junkMultiplier" step="0.001" value="0.715">
           </div>
           <div class="form-group">
             <label class="form-label">Manual Multiplier Override</label>
             <input class="form-input" type="number" id="junkMultOverride" step="0.1" placeholder="Leave blank for auto">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sell Premium %</label>
+            <input class="form-input" type="number" id="sellPremJunk" step="0.1" value="7">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Buy Discount %</label>
+            <input class="form-input" type="number" id="buyDiscJunk" step="0.1" value="3">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Wholesale Discount %</label>
+            <input class="form-input" type="number" id="whDiscJunk" step="0.1" value="1">
           </div>
         </div>
       </div>
@@ -2381,6 +2405,18 @@ tr.compliance-row-flagged.compliance-row-1099b {
           <option value="pre33_10">$10 Eagle</option>
           <option value="pre33_5">$5 Half Eagle</option>
           <option value="pre33_250">$2.50 Quarter Eagle</option>
+        </select>
+      </div>
+      <div class="form-group" id="editScrapPurityGroup" style="display:none;">
+        <label class="form-label">Purity</label>
+        <select class="form-select" id="editScrapPurity"></select>
+      </div>
+      <div class="form-group" id="editScrapWeightUnitGroup" style="display:none;">
+        <label class="form-label">Weight Unit</label>
+        <select class="form-select" id="editScrapWeightUnit">
+          <option value="g">Grams</option>
+          <option value="dwt">Pennyweight (dwt)</option>
+          <option value="ozt">Troy Oz</option>
         </select>
       </div>
       <div class="form-group">
@@ -2598,6 +2634,30 @@ const PRE33_GOLD_CONTENT = {
   pre33_250: 0.12094
 };
 
+// ─── Scrap Purity & Weight Units ───
+const SCRAP_PURITIES = {
+  gold: {
+    '8k':  { label: '8K Gold',  fineness: 8/24 },
+    '9k':  { label: '9K Gold',  fineness: 9/24 },
+    '10k': { label: '10K Gold', fineness: 10/24 },
+    '14k': { label: '14K Gold', fineness: 14/24 },
+    '18k': { label: '18K Gold', fineness: 18/24 },
+    '22k': { label: '22K Gold', fineness: 22/24 },
+    '24k': { label: '24K Gold', fineness: 24/24 },
+  },
+  silver: {
+    '800': { label: '.800 Silver', fineness: 0.800 },
+    '900': { label: '.900 Silver', fineness: 0.900 },
+    '925': { label: '.925 Sterling', fineness: 0.925 },
+    '999': { label: '.999 Fine', fineness: 0.999 },
+  }
+};
+const WEIGHT_UNITS = {
+  g:   { label: 'Grams',       toTroyOz: 1 / 31.1035 },
+  dwt: { label: 'Pennyweight', toTroyOz: 1 / 20 },
+  ozt: { label: 'Troy Oz',     toTroyOz: 1 },
+};
+
 // ─── Default Settings ───
 const DEFAULT_SETTINGS = {
   shopName: 'My Bullion Shop',
@@ -2605,7 +2665,8 @@ const DEFAULT_SETTINGS = {
   buyDiscCoins: 3, buyDiscBars: 5, buyDiscScrap: 8,
   whDiscCoins: 1, whDiscBars: 2, whDiscScrap: 3,
   coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0, pre33: 0 },
-  junkDivisor: 1.3, junkMultOverride: null,
+  junkMultiplier: 0.715, junkMultOverride: null,
+  sellPremJunk: 7, buyDiscJunk: 3, whDiscJunk: 1,
   threshGold: 10, threshSilver: 500,
   reorderPoints: {
     goldCoins: 0, goldBars: 0, goldRounds: 0, goldScrap: 0,
@@ -2616,6 +2677,16 @@ const DEFAULT_SETTINGS = {
 let settings = { ...DEFAULT_SETTINGS, ...Store.get('settings', {}) };
 if (!settings.coinAdjustments) settings.coinAdjustments = { ...DEFAULT_SETTINGS.coinAdjustments };
 if (!settings.reorderPoints) settings.reorderPoints = { ...DEFAULT_SETTINGS.reorderPoints };
+// Migrate junkDivisor → junkMultiplier
+if (settings.junkDivisor !== undefined && settings.junkMultiplier === undefined) {
+  settings.junkMultiplier = 0.715;
+  delete settings.junkDivisor;
+}
+if (settings.sellPremJunk === undefined) {
+  settings.sellPremJunk = settings.sellPremCoins || DEFAULT_SETTINGS.sellPremJunk;
+  settings.buyDiscJunk = settings.buyDiscCoins || DEFAULT_SETTINGS.buyDiscJunk;
+  settings.whDiscJunk = settings.whDiscCoins || DEFAULT_SETTINGS.whDiscJunk;
+}
 let transactions = Store.get('transactions', []);
 let contacts = Store.get('contacts', []);
 let customers = Store.get('customers', []);
@@ -2778,9 +2849,31 @@ function getTypeLabel(type) {
   return { buy: 'Retail Buy', sell: 'Retail Sell', wholesale: 'Wholesale' }[type] || type;
 }
 
+function populateScrapPurities(metal) {
+  const sel = $('scrapPurity');
+  const purities = SCRAP_PURITIES[metal] || {};
+  sel.innerHTML = Object.entries(purities).map(([key, p]) =>
+    `<option value="${key}">${p.label}</option>`
+  ).join('');
+  // Default: 14k for gold, 925 for silver
+  if (metal === 'gold') sel.value = '14k';
+  else if (metal === 'silver') sel.value = '925';
+}
+
+function getScrapFineOz(rawQty) {
+  const unit = $('scrapWeightUnit').value;
+  const purityKey = $('scrapPurity').value;
+  const metal = calcMetal.value;
+  const purity = (SCRAP_PURITIES[metal] || {})[purityKey];
+  const troyOz = rawQty * WEIGHT_UNITS[unit].toTroyOz;
+  return troyOz * (purity ? purity.fineness : 1);
+}
+
 function getTxLines(tx) {
   if (tx.lines && tx.lines.length > 0) return tx.lines;
-  return [{ metal: tx.metal, form: tx.form, coinType: tx.coinType, qty: tx.qty, spot: tx.spot, price: tx.price, total: tx.total, profit: tx.profit }];
+  const line = { metal: tx.metal, form: tx.form, coinType: tx.coinType, qty: tx.qty, spot: tx.spot, price: tx.price, total: tx.total, profit: tx.profit };
+  if (tx.scrapPurity) { line.scrapPurity = tx.scrapPurity; line.scrapWeightUnit = tx.scrapWeightUnit; line.rawQty = tx.rawQty; }
+  return [line];
 }
 
 // ─── 24-Hour Cash Aggregation (Form 8300) ───
@@ -2902,13 +2995,13 @@ function calcDealPrice(metal, form, txType, coinType) {
 
   if (form === 'junk') {
     // Junk silver: multiplier-based
-    const multiplier = settings.junkMultOverride || (spot / settings.junkDivisor);
+    const multiplier = settings.junkMultOverride || (spot * settings.junkMultiplier);
     // For junk, the "price" is the multiplier * face value
     // We still apply a margin adjustment for buy vs sell
     let adj = 1;
-    if (txType === 'buy') adj = 1 - settings.buyDiscCoins / 100;
-    else if (txType === 'sell') adj = 1 + settings.sellPremCoins / 100;
-    else if (txType === 'wholesale') adj = 1 - settings.whDiscCoins / 100;
+    if (txType === 'buy') adj = 1 - settings.buyDiscJunk / 100;
+    else if (txType === 'sell') adj = 1 + settings.sellPremJunk / 100;
+    else if (txType === 'wholesale') adj = 1 - settings.whDiscJunk / 100;
     return { spot, pricePerUnit: multiplier * adj, multiplier, isJunk: true };
   }
 
@@ -2922,6 +3015,12 @@ let dealLines = [];
 
 function getLineDescription(line) {
   const metalLabel = line.metal === 'gold' ? 'Gold' : 'Silver';
+  if (line.form === 'scrap' && line.scrapPurity) {
+    const purity = (SCRAP_PURITIES[line.metal] || {})[line.scrapPurity];
+    const purityLabel = purity ? purity.label.replace(/\s*(Gold|Silver)$/, '') : line.scrapPurity;
+    const unitLabel = line.scrapWeightUnit ? WEIGHT_UNITS[line.scrapWeightUnit].label : '';
+    return `${metalLabel} Scrap (${purityLabel}) — ${line.rawQty}${line.scrapWeightUnit === 'g' ? 'g' : line.scrapWeightUnit === 'dwt' ? ' dwt' : ' ozt'} → ${fmtOz(line.qty)} fine oz`;
+  }
   const formLabel = getFormDisplayLabel(line.form, line.coinType);
   const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' oz';
   return `${metalLabel} ${formLabel} — ${qtyLabel}`;
@@ -2931,18 +3030,29 @@ function addLineToDeal() {
   const metal = $('calcMetal').value;
   const form = $('calcForm').value;
   const coinType = form === 'coins' ? $('calcCoinType').value : null;
-  const qty = parseFloat($('calcQty').value) || 0;
-  if (qty <= 0) return;
+  const rawQty = parseFloat($('calcQty').value) || 0;
+  if (rawQty <= 0) return;
 
   const deal = calcDealPrice(metal, form, calcTxType, coinType);
   if (deal.spot <= 0) return;
 
-  const effectiveQty = isPre33(coinType) ? qty * (PRE33_GOLD_CONTENT[coinType] || 1) : qty;
+  let effectiveQty, qty;
+  if (form === 'scrap') {
+    effectiveQty = getScrapFineOz(rawQty);
+    qty = effectiveQty;
+  } else if (isPre33(coinType)) {
+    effectiveQty = rawQty * (PRE33_GOLD_CONTENT[coinType] || 1);
+    qty = rawQty;
+  } else {
+    effectiveQty = rawQty;
+    qty = rawQty;
+  }
+
   let pricePerUnit, totalValue, profit;
   if (deal.isJunk) {
     pricePerUnit = deal.pricePerUnit;
     totalValue = pricePerUnit * qty;
-    const spotValue = (deal.spot / settings.junkDivisor) * qty;
+    const spotValue = (deal.spot * settings.junkMultiplier) * qty;
     profit = calcTxType === 'sell' ? totalValue - spotValue : spotValue - totalValue;
   } else if (isPre33(coinType)) {
     pricePerUnit = deal.pricePerOz;
@@ -2950,20 +3060,28 @@ function addLineToDeal() {
     profit = calcTxType === 'sell' ? (pricePerUnit - deal.spot) * effectiveQty : (deal.spot - pricePerUnit) * effectiveQty;
   } else {
     pricePerUnit = deal.pricePerOz;
-    totalValue = pricePerUnit * qty;
-    profit = calcTxType === 'sell' ? (pricePerUnit - deal.spot) * qty : (deal.spot - pricePerUnit) * qty;
+    totalValue = pricePerUnit * effectiveQty;
+    profit = calcTxType === 'sell' ? (pricePerUnit - deal.spot) * effectiveQty : (deal.spot - pricePerUnit) * effectiveQty;
   }
 
-  dealLines.push({
+  const line = {
     metal,
     form,
     coinType: coinType || undefined,
-    qty,
+    qty: form === 'scrap' ? effectiveQty : qty,
     spot: deal.spot,
     price: pricePerUnit,
     total: totalValue,
     profit
-  });
+  };
+
+  if (form === 'scrap') {
+    line.scrapPurity = $('scrapPurity').value;
+    line.scrapWeightUnit = $('scrapWeightUnit').value;
+    line.rawQty = rawQty;
+  }
+
+  dealLines.push(line);
 
   $('calcQty').value = '';
   renderDealLines();
@@ -3026,7 +3144,7 @@ calcTypeEl.querySelectorAll('.segment-btn').forEach(btn => {
   });
 });
 
-// Form select: lock to silver if junk selected, show/hide coin type
+// Form select: lock to silver if junk selected, show/hide coin type & scrap groups
 calcForm.addEventListener('change', () => {
   if (calcForm.value === 'junk') {
     calcMetal.value = 'silver';
@@ -3038,6 +3156,14 @@ calcForm.addEventListener('change', () => {
     calcMetal.disabled = false;
   }
   $('coinTypeGroup').style.display = calcForm.value === 'coins' ? '' : 'none';
+  if (calcForm.value === 'scrap') {
+    $('scrapPurityGroup').style.display = '';
+    $('scrapWeightUnitGroup').style.display = '';
+    populateScrapPurities(calcMetal.value);
+  } else {
+    $('scrapPurityGroup').style.display = 'none';
+    $('scrapWeightUnitGroup').style.display = 'none';
+  }
   updateQtyLabel();
   recalcDeal();
 });
@@ -3053,17 +3179,35 @@ $('calcCoinType').addEventListener('change', () => {
   recalcDeal();
 });
 
-calcMetal.addEventListener('change', recalcDeal);
+calcMetal.addEventListener('change', () => {
+  if (calcForm.value === 'scrap') {
+    populateScrapPurities(calcMetal.value);
+  }
+  recalcDeal();
+});
 calcQty.addEventListener('input', () => { updateQtyLabel(); recalcDeal(); });
+$('scrapPurity').addEventListener('change', () => { updateQtyLabel(); recalcDeal(); });
+$('scrapWeightUnit').addEventListener('change', () => { updateQtyLabel(); recalcDeal(); });
 calcPayment.addEventListener('change', recalcDeal);
 
 $('addLineBtn').addEventListener('click', addLineToDeal);
 
 function updateQtyLabel() {
   const coinType = calcForm.value === 'coins' ? $('calcCoinType').value : null;
-  if (calcForm.value === 'junk') {
+  if (calcForm.value === 'scrap') {
     const qty = parseFloat(calcQty.value) || 0;
-    const asw = qty / settings.junkDivisor;
+    const unit = $('scrapWeightUnit').value;
+    const unitLabel = WEIGHT_UNITS[unit].label;
+    if (qty > 0) {
+      const fineOz = getScrapFineOz(qty);
+      $('qtyLabel').textContent = 'Weight (' + fmtOz(fineOz) + ' fine toz)';
+    } else {
+      $('qtyLabel').textContent = 'Weight (' + unitLabel + ')';
+    }
+    calcQty.placeholder = unit === 'ozt' ? '0.000' : '0.0';
+  } else if (calcForm.value === 'junk') {
+    const qty = parseFloat(calcQty.value) || 0;
+    const asw = qty * settings.junkMultiplier;
     $('qtyLabel').textContent = qty > 0 ? 'Face Value ($) (' + fmtOz(asw) + ' toz)' : 'Face Value ($)';
     calcQty.placeholder = '0.00';
   } else if (isPre33(coinType)) {
@@ -3090,7 +3234,7 @@ function recalcDeal() {
     $('outPriceLabel').textContent = (calcTxType === 'sell' ? 'Our Sell' : 'Our Buy') + ' Multiplier';
     $('outPrice').textContent = deal.pricePerUnit.toFixed(2) + 'x face';
 
-    const spotMultiplier = deal.spot / settings.junkDivisor;
+    const spotMultiplier = deal.spot * settings.junkMultiplier;
     const marginPerDollar = Math.abs(deal.pricePerUnit - spotMultiplier);
     $('outMargin').textContent = fmt(marginPerDollar) + ' / $face';
 
@@ -3122,6 +3266,7 @@ function recalcDeal() {
                    (deal.spot - deal.pricePerOz) * effectiveQty;
     $('outProfit').textContent = (profit >= 0 ? '+' : '-') + fmt(profit);
   } else {
+    const displayQty = form === 'scrap' ? getScrapFineOz(qty) : qty;
     $('outSpot').textContent = fmt(deal.spot) + '/oz';
     $('outPriceLabel').textContent = (calcTxType === 'sell' ? 'Our Sell' : 'Our Buy') + ' Price / oz';
     $('outPrice').textContent = fmt(deal.pricePerOz);
@@ -3129,12 +3274,12 @@ function recalcDeal() {
     const marginPerOz = Math.abs(deal.pricePerOz - deal.spot);
     $('outMargin').textContent = fmt(marginPerOz) + ' / oz';
 
-    const totalValue = deal.pricePerOz * qty;
+    const totalValue = deal.pricePerOz * displayQty;
     $('outTotal').textContent = fmt(totalValue);
 
-    const profit = calcTxType === 'sell' ? (deal.pricePerOz - deal.spot) * qty :
-                   calcTxType === 'buy' ? (deal.spot - deal.pricePerOz) * qty :
-                   (deal.spot - deal.pricePerOz) * qty;
+    const profit = calcTxType === 'sell' ? (deal.pricePerOz - deal.spot) * displayQty :
+                   calcTxType === 'buy' ? (deal.spot - deal.pricePerOz) * displayQty :
+                   (deal.spot - deal.pricePerOz) * displayQty;
     $('outProfit').textContent = (profit >= 0 ? '+' : '-') + fmt(profit);
   }
 
@@ -3143,7 +3288,8 @@ function recalcDeal() {
 
   // Form 8300 compliance warning (single + 24hr aggregation)
   const payment = calcPayment.value;
-  const pre33Qty = isPre33(coinType) ? qty * (PRE33_GOLD_CONTENT[coinType] || 1) : qty;
+  const scrapQty = form === 'scrap' ? getScrapFineOz(qty) : qty;
+  const pre33Qty = isPre33(coinType) ? qty * (PRE33_GOLD_CONTENT[coinType] || 1) : scrapQty;
   const currentLineTotal = deal.isJunk ? deal.pricePerUnit * qty : (deal.pricePerOz || 0) * pre33Qty;
   const dealLinesTotal = dealLines.reduce((s, l) => s + l.total, 0);
   const totalValue = currentLineTotal + dealLinesTotal;
@@ -3239,6 +3385,11 @@ $('logDealBtn').addEventListener('click', () => {
     tx.qty = dealLines[0].qty;
     tx.spot = dealLines[0].spot;
     tx.price = dealLines[0].price;
+    if (dealLines[0].scrapPurity) {
+      tx.scrapPurity = dealLines[0].scrapPurity;
+      tx.scrapWeightUnit = dealLines[0].scrapWeightUnit;
+      tx.rawQty = dealLines[0].rawQty;
+    }
   }
 
   // Form 8300 compliance flag (single transaction)
@@ -3375,14 +3526,14 @@ function renderTransactions() {
       const metals = [...new Set(lines.map(l => l.metal))];
       metalCol = metals.map(m => m === 'gold' ? '<span style="color:var(--gold)">Au</span>' : '<span style="color:var(--silver)">Ag</span>').join('+');
       formCol = lines.length + ' items';
-      qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : isPre33(l.coinType) ? l.qty + ' coins' : fmtOz(l.qty)).join(', ');
+      qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : isPre33(l.coinType) ? l.qty + ' coins' : l.form === 'scrap' && l.scrapPurity ? fmtOz(l.qty) + ' fine oz' : fmtOz(l.qty)).join(', ');
       spotCol = '—';
       priceCol = '—';
     } else {
       const line = lines[0];
       metalCol = line.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
       formCol = getFormDisplayLabel(line.form, line.coinType);
-      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' oz';
+      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : line.form === 'scrap' && line.scrapPurity ? fmtOz(line.qty) + ' fine oz' : fmtOz(line.qty) + ' oz';
       spotCol = fmt(line.spot);
       priceCol = fmt(line.price);
     }
@@ -3487,8 +3638,24 @@ window.openEditModal = function(id) {
   $('editForm').value = line.form;
   $('editCoinTypeGroup').style.display = line.form === 'coins' ? '' : 'none';
   $('editCoinType').value = line.coinType || '';
+  // Scrap purity fields
+  if (line.form === 'scrap' && line.scrapPurity) {
+    $('editScrapPurityGroup').style.display = '';
+    $('editScrapWeightUnitGroup').style.display = '';
+    const editPuritySel = $('editScrapPurity');
+    const purities = SCRAP_PURITIES[line.metal] || {};
+    editPuritySel.innerHTML = Object.entries(purities).map(([key, p]) =>
+      `<option value="${key}">${p.label}</option>`
+    ).join('');
+    editPuritySel.value = line.scrapPurity;
+    $('editScrapWeightUnit').value = line.scrapWeightUnit || 'ozt';
+    $('editQty').value = line.rawQty;
+  } else {
+    $('editScrapPurityGroup').style.display = 'none';
+    $('editScrapWeightUnitGroup').style.display = 'none';
+  }
   $('editType').value = tx.type;
-  $('editQty').value = line.qty;
+  if (!(line.form === 'scrap' && line.scrapPurity)) $('editQty').value = line.qty;
   $('editSpot').value = line.spot;
   $('editPrice').value = line.price;
   $('editPayment').value = tx.payment;
@@ -3516,6 +3683,17 @@ window.openEditModal = function(id) {
 
 $('editForm').addEventListener('change', () => {
   $('editCoinTypeGroup').style.display = $('editForm').value === 'coins' ? '' : 'none';
+  $('editScrapPurityGroup').style.display = $('editForm').value === 'scrap' ? '' : 'none';
+  $('editScrapWeightUnitGroup').style.display = $('editForm').value === 'scrap' ? '' : 'none';
+  if ($('editForm').value === 'scrap' && !$('editScrapPurity').options.length) {
+    const metal = $('editMetal').value;
+    const purities = SCRAP_PURITIES[metal] || {};
+    $('editScrapPurity').innerHTML = Object.entries(purities).map(([key, p]) =>
+      `<option value="${key}">${p.label}</option>`
+    ).join('');
+    if (metal === 'gold') $('editScrapPurity').value = '14k';
+    else if (metal === 'silver') $('editScrapPurity').value = '925';
+  }
 });
 
 $('editCancelBtn').addEventListener('click', () => $('editModal').classList.remove('open'));
@@ -3525,19 +3703,35 @@ $('editSaveBtn').addEventListener('click', () => {
   const idx = transactions.findIndex(t => t.id === id);
   if (idx === -1) return;
 
-  const qty = parseFloat($('editQty').value) || 0;
+  const rawQtyInput = parseFloat($('editQty').value) || 0;
   const spot = parseFloat($('editSpot').value) || 0;
   const price = parseFloat($('editPrice').value) || 0;
   const type = $('editType').value;
+  const editedForm = $('editForm').value;
+  const editedMetal = $('editMetal').value;
 
-  if (qty <= 0) { alert('Quantity must be greater than 0.'); return; }
+  if (rawQtyInput <= 0) { alert('Quantity must be greater than 0.'); return; }
   if (spot <= 0) { alert('Spot price must be greater than 0.'); return; }
   if (price <= 0) { alert('Price must be greater than 0.'); return; }
+
+  // Scrap purity conversion
+  let qty = rawQtyInput;
+  let editScrapPurity, editScrapWeightUnit, editRawQty;
+  if (editedForm === 'scrap' && $('editScrapPurityGroup').style.display !== 'none') {
+    const purityKey = $('editScrapPurity').value;
+    const unitKey = $('editScrapWeightUnit').value;
+    const purity = (SCRAP_PURITIES[editedMetal] || {})[purityKey];
+    if (purity) {
+      qty = rawQtyInput * WEIGHT_UNITS[unitKey].toTroyOz * purity.fineness;
+      editScrapPurity = purityKey;
+      editScrapWeightUnit = unitKey;
+      editRawQty = rawQtyInput;
+    }
+  }
 
   const total = price * qty;
   const profit = type === 'sell' ? (price - spot) * qty : (spot - price) * qty;
 
-  const editedForm = $('editForm').value;
   const editedCoinType = editedForm === 'coins' ? ($('editCoinType').value || undefined) : undefined;
 
   const editedCustomerId = $('editCustomer').value || undefined;
@@ -3556,7 +3750,7 @@ $('editSaveBtn').addEventListener('click', () => {
   // 1099-B recalculation on edit
   const edited1099BTx = {
     type,
-    metal: $('editMetal').value,
+    metal: editedMetal,
     form: editedForm,
     coinType: editedCoinType,
     qty,
@@ -3568,7 +3762,12 @@ $('editSaveBtn').addEventListener('click', () => {
   const existing1099BFlag = transactions[idx].form1099BFlag;
 
   const existingLines = transactions[idx].lines;
-  const updatedLine = { metal: $('editMetal').value, form: editedForm, coinType: editedCoinType, qty, spot, price, total, profit };
+  const updatedLine = { metal: editedMetal, form: editedForm, coinType: editedCoinType, qty, spot, price, total, profit };
+  if (editScrapPurity) {
+    updatedLine.scrapPurity = editScrapPurity;
+    updatedLine.scrapWeightUnit = editScrapWeightUnit;
+    updatedLine.rawQty = editRawQty;
+  }
 
   if (existingLines && existingLines.length > 1) {
     // Multi-line: update first line, recompute deal totals
@@ -3597,9 +3796,9 @@ $('editSaveBtn').addEventListener('click', () => {
       lines: existingLines
     };
   } else {
-    transactions[idx] = {
+    const updated = {
       ...transactions[idx],
-      metal: $('editMetal').value,
+      metal: editedMetal,
       form: editedForm,
       coinType: editedCoinType,
       type,
@@ -3614,6 +3813,16 @@ $('editSaveBtn').addEventListener('click', () => {
       form1099BFiled: edited1099BFlag && existing1099BFlag ? $('editForm1099BFiled').checked : undefined,
       lines: [updatedLine]
     };
+    if (editScrapPurity) {
+      updated.scrapPurity = editScrapPurity;
+      updated.scrapWeightUnit = editScrapWeightUnit;
+      updated.rawQty = editRawQty;
+    } else {
+      delete updated.scrapPurity;
+      delete updated.scrapWeightUnit;
+      delete updated.rawQty;
+    }
+    transactions[idx] = updated;
   }
 
   Store.set('transactions', transactions);
@@ -3673,7 +3882,7 @@ function generateReceipt(tx) {
     itemsHtml = `<div class="receipt-body">` +
       lines.map((line, i) => {
         const metalLabel = line.metal === 'gold' ? 'Gold' : 'Silver';
-        const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' oz';
+        const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : line.form === 'scrap' && line.scrapPurity ? line.rawQty + (line.scrapWeightUnit === 'g' ? 'g' : line.scrapWeightUnit === 'dwt' ? ' dwt' : ' ozt') + ' ' + ((SCRAP_PURITIES[line.metal] || {})[line.scrapPurity] || {}).label + ' (' + fmtOz(line.qty) + ' fine toz)' : fmtOz(line.qty) + ' oz';
         return `
           <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px dotted #ddd;">
             <div style="font-weight:700;font-size:12px;color:#888;margin-bottom:4px;">Item ${i + 1}</div>
@@ -3689,7 +3898,7 @@ function generateReceipt(tx) {
   } else {
     const line = lines[0];
     const metalLabel = line.metal === 'gold' ? 'Gold' : 'Silver';
-    const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' Face Value' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' troy oz';
+    const qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' Face Value' : isPre33(line.coinType) ? line.qty + ' coins' : line.form === 'scrap' && line.scrapPurity ? line.rawQty + (line.scrapWeightUnit === 'g' ? 'g' : line.scrapWeightUnit === 'dwt' ? ' dwt' : ' ozt') + ' ' + ((SCRAP_PURITIES[line.metal] || {})[line.scrapPurity] || {}).label + ' (' + fmtOz(line.qty) + ' fine toz)' : fmtOz(line.qty) + ' troy oz';
     itemsHtml = `
     <div class="receipt-body">
       <div class="receipt-row"><span class="receipt-label">Metal</span><span class="receipt-val">${metalLabel}</span></div>
@@ -3771,7 +3980,7 @@ function getInventory() {
   transactions.forEach(tx => {
     getTxLines(tx).forEach(line => {
       const metal = line.metal;
-      const qty = line.form === 'junk' ? line.qty / settings.junkDivisor
+      const qty = line.form === 'junk' ? line.qty * settings.junkMultiplier
                 : isPre33(line.coinType) ? line.qty * (PRE33_GOLD_CONTENT[line.coinType] || 1)
                 : line.qty;
       if (tx.type === 'buy') {
@@ -4120,8 +4329,11 @@ function loadSettings() {
   $('adjBritannias').value = ca.britannias || 0;
   $('adjPhilharmonics').value = ca.philharmonics || 0;
   $('adjPre33').value = ca.pre33 || 0;
-  $('junkDivisor').value = settings.junkDivisor;
+  $('junkMultiplier').value = settings.junkMultiplier;
   $('junkMultOverride').value = settings.junkMultOverride || '';
+  $('sellPremJunk').value = settings.sellPremJunk;
+  $('buyDiscJunk').value = settings.buyDiscJunk;
+  $('whDiscJunk').value = settings.whDiscJunk;
   $('threshGold').value = settings.threshGold;
   $('threshSilver').value = settings.threshSilver;
   const rp = settings.reorderPoints || {};
@@ -4157,8 +4369,11 @@ $('saveSettingsBtn').addEventListener('click', () => {
       philharmonics: Math.max(0, parseFloat($('adjPhilharmonics').value) || 0),
       pre33: Math.max(0, parseFloat($('adjPre33').value) || 0)
     },
-    junkDivisor: parseFloat($('junkDivisor').value) > 0 ? parseFloat($('junkDivisor').value) : 1.3,
+    junkMultiplier: parseFloat($('junkMultiplier').value) > 0 ? parseFloat($('junkMultiplier').value) : 0.715,
     junkMultOverride: parseFloat($('junkMultOverride').value) || null,
+    sellPremJunk: Math.max(0, parseFloat($('sellPremJunk').value) || 0),
+    buyDiscJunk: Math.max(0, parseFloat($('buyDiscJunk').value) || 0),
+    whDiscJunk: Math.max(0, parseFloat($('whDiscJunk').value) || 0),
     threshGold: Math.max(0, parseFloat($('threshGold').value) || 10),
     threshSilver: Math.max(0, parseFloat($('threshSilver').value) || 500),
     reorderPoints: {
@@ -4504,11 +4719,11 @@ function updateDashboard() {
     if (isMulti) {
       const metals = [...new Set(lines.map(l => l.metal))];
       metalCol = metals.map(m => m === 'gold' ? '<span style="color:var(--gold)">Au</span>' : '<span style="color:var(--silver)">Ag</span>').join('+');
-      qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : isPre33(l.coinType) ? l.qty + ' coins' : fmtOz(l.qty)).join(', ');
+      qtyLabel = lines.map(l => l.form === 'junk' ? '$' + fmtOz(l.qty) + ' FV' : isPre33(l.coinType) ? l.qty + ' coins' : l.form === 'scrap' && l.scrapPurity ? fmtOz(l.qty) + ' fine oz' : fmtOz(l.qty)).join(', ');
     } else {
       const line = lines[0];
       metalCol = line.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
-      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : fmtOz(line.qty) + ' oz';
+      qtyLabel = line.form === 'junk' ? '$' + fmtOz(line.qty) + ' FV' : isPre33(line.coinType) ? line.qty + ' coins' : line.form === 'scrap' && line.scrapPurity ? fmtOz(line.qty) + ' fine oz' : fmtOz(line.qty) + ' oz';
     }
 
     const custName = getCustomerName(tx.customerId);
