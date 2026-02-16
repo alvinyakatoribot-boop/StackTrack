@@ -145,6 +145,11 @@ test.describe('Pre-1933 US Gold Coins', () => {
     await page.selectOption('#calcForm', 'coins');
     await page.selectOption('#calcCoinType', 'pre33_20');
     await expect(page.locator('#qtyLabel')).toHaveText('Number of Coins');
+
+    // Entering a qty shows AGW in parentheses
+    await page.fill('#calcQty', '5');
+    // 5 * 0.9675 = 4.8375 → "4.838 toz"
+    await expect(page.locator('#qtyLabel')).toHaveText('Number of Coins (4.838 toz)');
   });
 
   test('Quantity label reverts to "Quantity (Troy Oz)" when switching to non-pre-1933 coin', async ({ page }) => {
