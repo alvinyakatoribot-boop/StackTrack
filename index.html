@@ -274,6 +274,7 @@ body {
 
 .alert-banner.visible { display: flex; }
 .alert-banner .alert-icon { font-size: 18px; }
+#bulkFlagBtn { background: var(--red); color: #fff; border: none; border-radius: var(--radius); padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 
 /* ═══════════════════════════════════════ */
 /* CARDS                                  */
@@ -1176,6 +1177,7 @@ tr.compliance-row-flagged {
   <div class="alert-banner" id="alertBanner">
     <span class="alert-icon">⚠</span>
     <span id="alertText">Inventory threshold exceeded — consider wholesaling</span>
+    <button id="bulkFlagBtn" style="display:none">Flag All</button>
   </div>
 
   <!-- ═══════════════ CALCULATOR PAGE ═══════════════ -->
@@ -2681,6 +2683,9 @@ function checkAlerts() {
   });
   if (unflaggedCustomers.length > 0) {
     alerts.push(`${unflaggedCustomers.length} un-flagged 24-hour cash aggregation(s) detected for: ${unflaggedCustomers.join(', ')}`);
+    $('bulkFlagBtn').style.display = '';
+  } else {
+    $('bulkFlagBtn').style.display = 'none';
   }
 
   const banner = $('alertBanner');
@@ -2691,6 +2696,35 @@ function checkAlerts() {
     banner.classList.remove('visible');
   }
 }
+
+$('bulkFlagBtn').addEventListener('click', () => {
+  const cashTxByCustomer = {};
+  transactions.forEach(t => {
+    if (t.payment === 'cash' && t.customerId && t.total > 0) {
+      if (!cashTxByCustomer[t.customerId]) cashTxByCustomer[t.customerId] = [];
+      cashTxByCustomer[t.customerId].push(t);
+    }
+  });
+  Object.values(cashTxByCustomer).forEach(txs => {
+    for (let i = 0; i < txs.length; i++) {
+      const refMs = new Date(txs[i].date).getTime();
+      let windowTotal = 0;
+      const windowTxs = [];
+      for (let j = 0; j < txs.length; j++) {
+        if (Math.abs(new Date(txs[j].date).getTime() - refMs) <= 86400000) {
+          windowTotal += txs[j].total;
+          windowTxs.push(txs[j]);
+        }
+      }
+      if (windowTotal >= 10000) {
+        windowTxs.forEach(t => { t.form8300Flag = true; });
+      }
+    }
+  });
+  Store.set('transactions', transactions);
+  renderTransactions();
+  checkAlerts();
+});
 
 // ─── Settings ───
 function loadSettings() {
