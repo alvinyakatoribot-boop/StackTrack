@@ -3054,7 +3054,7 @@ $('calcCoinType').addEventListener('change', () => {
 });
 
 calcMetal.addEventListener('change', recalcDeal);
-calcQty.addEventListener('input', recalcDeal);
+calcQty.addEventListener('input', () => { updateQtyLabel(); recalcDeal(); });
 calcPayment.addEventListener('change', recalcDeal);
 
 $('addLineBtn').addEventListener('click', addLineToDeal);
@@ -3062,10 +3062,14 @@ $('addLineBtn').addEventListener('click', addLineToDeal);
 function updateQtyLabel() {
   const coinType = calcForm.value === 'coins' ? $('calcCoinType').value : null;
   if (calcForm.value === 'junk') {
-    $('qtyLabel').textContent = 'Face Value ($)';
+    const qty = parseFloat(calcQty.value) || 0;
+    const asw = qty / settings.junkDivisor;
+    $('qtyLabel').textContent = qty > 0 ? 'Face Value ($) (' + fmtOz(asw) + ' toz)' : 'Face Value ($)';
     calcQty.placeholder = '0.00';
   } else if (isPre33(coinType)) {
-    $('qtyLabel').textContent = 'Number of Coins';
+    const qty = parseFloat(calcQty.value) || 0;
+    const agw = qty * (PRE33_GOLD_CONTENT[coinType] || 1);
+    $('qtyLabel').textContent = qty > 0 ? 'Number of Coins (' + fmtOz(agw) + ' toz)' : 'Number of Coins';
     calcQty.placeholder = '0';
     calcQty.step = '1';
   } else {
