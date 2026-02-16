@@ -643,6 +643,29 @@ td.profit-negative { color: var(--red); font-family: var(--mono); }
   font-family: var(--mono);
   color: var(--text-primary);
 }
+.breakdown-row.low-stock .breakdown-val {
+  color: var(--red);
+}
+.reorder-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.reorder-alert-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--red);
+  border-bottom: 1px solid var(--border);
+}
+.reorder-alert-item:last-child {
+  border-bottom: none;
+}
 
 /* ═══════════════════════════════════════ */
 /* WHOLESALE CONTACTS                     */
@@ -1821,6 +1844,12 @@ tr.compliance-row-flagged.compliance-row-1099b {
       </div>
     </div>
 
+    <div class="card" id="invReorderAlerts">
+      <div class="card-title">Reorder Alerts</div>
+      <div id="invReorderList"></div>
+      <div class="empty-state" id="invReorderEmpty" style="padding:12px;">All inventory levels are above reorder points.</div>
+    </div>
+
     <div class="card">
       <div class="card-title">Wholesale Contact Directory</div>
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
@@ -2012,6 +2041,53 @@ tr.compliance-row-flagged.compliance-row-1099b {
           <div class="form-group">
             <label class="form-label">Silver (oz)</label>
             <input class="form-input" type="number" id="threshSilver" step="1" value="500">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Reorder Alerts (Low-stock warning when inventory drops below)</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Set to 0 to disable alerts for that form.</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px;color:var(--gold);">Gold (oz)</div>
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label">Coins</label>
+            <input class="form-input" type="number" id="reorderGoldCoins" step="0.1" value="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bars</label>
+            <input class="form-input" type="number" id="reorderGoldBars" step="0.1" value="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rounds</label>
+            <input class="form-input" type="number" id="reorderGoldRounds" step="0.1" value="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Scrap</label>
+            <input class="form-input" type="number" id="reorderGoldScrap" step="0.1" value="0" min="0">
+          </div>
+        </div>
+        <div style="font-size:13px;font-weight:600;margin:12px 0 6px;color:var(--silver);">Silver (oz)</div>
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label">Coins</label>
+            <input class="form-input" type="number" id="reorderSilverCoins" step="1" value="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bars</label>
+            <input class="form-input" type="number" id="reorderSilverBars" step="1" value="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rounds</label>
+            <input class="form-input" type="number" id="reorderSilverRounds" step="1" value="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Junk</label>
+            <input class="form-input" type="number" id="reorderSilverJunk" step="1" value="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Scrap</label>
+            <input class="form-input" type="number" id="reorderSilverScrap" step="1" value="0" min="0">
           </div>
         </div>
       </div>
@@ -2280,11 +2356,16 @@ const DEFAULT_SETTINGS = {
   whDiscCoins: 1, whDiscBars: 2, whDiscScrap: 3,
   coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0 },
   junkDivisor: 1.3, junkMultOverride: null,
-  threshGold: 10, threshSilver: 500
+  threshGold: 10, threshSilver: 500,
+  reorderPoints: {
+    goldCoins: 0, goldBars: 0, goldRounds: 0, goldScrap: 0,
+    silverCoins: 0, silverBars: 0, silverRounds: 0, silverJunk: 0, silverScrap: 0
+  }
 };
 
 let settings = { ...DEFAULT_SETTINGS, ...Store.get('settings', {}) };
 if (!settings.coinAdjustments) settings.coinAdjustments = { ...DEFAULT_SETTINGS.coinAdjustments };
+if (!settings.reorderPoints) settings.reorderPoints = { ...DEFAULT_SETTINGS.reorderPoints };
 let transactions = Store.get('transactions', []);
 let contacts = Store.get('contacts', []);
 let customers = Store.get('customers', []);
@@ -3237,15 +3318,39 @@ function updateInventoryPage() {
   $('invGoldValue').textContent = (totalGold < 0 ? '-' : '') + fmt(totalGold * spotPrices.gold) + ' at spot';
   $('invSilverValue').textContent = (totalSilver < 0 ? '-' : '') + fmt(totalSilver * spotPrices.silver) + ' at spot';
 
-  // Breakdowns
+  // Breakdowns with low-stock indicators
   const forms = ['coins', 'bars', 'rounds', 'junk', 'scrap'];
-  const renderBreakdown = (metalInv) => forms
+  const rp = settings.reorderPoints || {};
+  const reorderAlerts = [];
+
+  const renderBreakdown = (metalInv, metal) => forms
     .filter(f => metalInv[f] !== 0)
-    .map(f => `<div class="breakdown-row"><span>${getFormLabel(f)}</span><span class="breakdown-val">${fmtOz(metalInv[f])} oz</span></div>`)
+    .map(f => {
+      const key = metal + f.charAt(0).toUpperCase() + f.slice(1);
+      const threshold = rp[key] || 0;
+      const isLow = threshold > 0 && metalInv[f] < threshold;
+      if (isLow) {
+        reorderAlerts.push({ metal, form: f, current: metalInv[f], threshold });
+      }
+      return `<div class="breakdown-row${isLow ? ' low-stock' : ''}"><span>${isLow ? '<span class="reorder-dot"></span>' : ''}${getFormLabel(f)}</span><span class="breakdown-val">${fmtOz(metalInv[f])} oz</span></div>`;
+    })
     .join('');
 
-  $('invGoldBreakdown').innerHTML = renderBreakdown(inv.gold);
-  $('invSilverBreakdown').innerHTML = renderBreakdown(inv.silver);
+  $('invGoldBreakdown').innerHTML = renderBreakdown(inv.gold, 'gold');
+  $('invSilverBreakdown').innerHTML = renderBreakdown(inv.silver, 'silver');
+
+  // Reorder alerts card
+  const alertList = $('invReorderList');
+  const alertEmpty = $('invReorderEmpty');
+  if (reorderAlerts.length > 0) {
+    alertList.innerHTML = reorderAlerts.map(a =>
+      `<div class="reorder-alert-item"><span class="reorder-dot"></span>${a.metal.charAt(0).toUpperCase() + a.metal.slice(1)} ${getFormLabel(a.form)}: ${fmtOz(a.current)} oz (reorder point: ${fmtOz(a.threshold)} oz)</div>`
+    ).join('');
+    alertEmpty.style.display = 'none';
+  } else {
+    alertList.innerHTML = '';
+    alertEmpty.style.display = 'block';
+  }
 }
 
 // ─── Wholesale Contacts ───
@@ -3368,7 +3473,7 @@ function updatePnlPage() {
 
 // ─── Alerts ───
 function checkAlerts() {
-  const { totalGold, totalSilver } = getInventory();
+  const { inv, totalGold, totalSilver } = getInventory();
   const alerts = [];
 
   if (totalGold > settings.threshGold) {
@@ -3376,6 +3481,23 @@ function checkAlerts() {
   }
   if (totalSilver > settings.threshSilver) {
     alerts.push(`Silver inventory (${fmtOz(totalSilver)} oz) exceeds ${fmtOz(settings.threshSilver)} oz threshold`);
+  }
+
+  // Per-form low-stock reorder alerts
+  const rp = settings.reorderPoints || {};
+  let lowStockCount = 0;
+  const formKeys = ['coins', 'bars', 'rounds', 'junk', 'scrap'];
+  ['gold', 'silver'].forEach(metal => {
+    formKeys.forEach(form => {
+      const key = metal + form.charAt(0).toUpperCase() + form.slice(1);
+      const threshold = rp[key] || 0;
+      if (threshold > 0 && inv[metal][form] < threshold) {
+        lowStockCount++;
+      }
+    });
+  });
+  if (lowStockCount > 0) {
+    alerts.push(`${lowStockCount} product(s) below reorder point`);
   }
 
   // Form 8300 compliance alerts
@@ -3521,6 +3643,16 @@ function loadSettings() {
   $('junkMultOverride').value = settings.junkMultOverride || '';
   $('threshGold').value = settings.threshGold;
   $('threshSilver').value = settings.threshSilver;
+  const rp = settings.reorderPoints || {};
+  $('reorderGoldCoins').value = rp.goldCoins || 0;
+  $('reorderGoldBars').value = rp.goldBars || 0;
+  $('reorderGoldRounds').value = rp.goldRounds || 0;
+  $('reorderGoldScrap').value = rp.goldScrap || 0;
+  $('reorderSilverCoins').value = rp.silverCoins || 0;
+  $('reorderSilverBars').value = rp.silverBars || 0;
+  $('reorderSilverRounds').value = rp.silverRounds || 0;
+  $('reorderSilverJunk').value = rp.silverJunk || 0;
+  $('reorderSilverScrap').value = rp.silverScrap || 0;
   $('shopNameDisplay').textContent = settings.shopName;
 }
 
@@ -3546,7 +3678,18 @@ $('saveSettingsBtn').addEventListener('click', () => {
     junkDivisor: parseFloat($('junkDivisor').value) > 0 ? parseFloat($('junkDivisor').value) : 1.3,
     junkMultOverride: parseFloat($('junkMultOverride').value) || null,
     threshGold: Math.max(0, parseFloat($('threshGold').value) || 10),
-    threshSilver: Math.max(0, parseFloat($('threshSilver').value) || 500)
+    threshSilver: Math.max(0, parseFloat($('threshSilver').value) || 500),
+    reorderPoints: {
+      goldCoins: Math.max(0, parseFloat($('reorderGoldCoins').value) || 0),
+      goldBars: Math.max(0, parseFloat($('reorderGoldBars').value) || 0),
+      goldRounds: Math.max(0, parseFloat($('reorderGoldRounds').value) || 0),
+      goldScrap: Math.max(0, parseFloat($('reorderGoldScrap').value) || 0),
+      silverCoins: Math.max(0, parseFloat($('reorderSilverCoins').value) || 0),
+      silverBars: Math.max(0, parseFloat($('reorderSilverBars').value) || 0),
+      silverRounds: Math.max(0, parseFloat($('reorderSilverRounds').value) || 0),
+      silverJunk: Math.max(0, parseFloat($('reorderSilverJunk').value) || 0),
+      silverScrap: Math.max(0, parseFloat($('reorderSilverScrap').value) || 0)
+    }
   };
 
   Store.set('settings', settings);
