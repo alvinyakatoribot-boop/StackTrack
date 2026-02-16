@@ -424,3 +424,80 @@ test.describe('Scrap karat calculator', () => {
     await expect(page.locator('#scrapWeightUnitGroup')).not.toBeVisible();
   });
 });
+
+// ─── Weight Unit Selector ────────────────────────────────────────────
+
+test.describe('Weight unit selector', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await mockSpotPrices(page);
+    await seedAndReload(page);
+    await page.click('[data-page="calculator"]');
+  });
+
+  test('weight unit dropdown visible for bars, hidden for junk and pre-1933', async ({ page }) => {
+    // Bars — should be visible
+    await page.selectOption('#calcForm', 'bars');
+    await expect(page.locator('#weightUnitGroup')).toBeVisible();
+
+    // Rounds — should be visible
+    await page.selectOption('#calcForm', 'rounds');
+    await expect(page.locator('#weightUnitGroup')).toBeVisible();
+
+    // Coins (modern) — should be visible
+    await page.selectOption('#calcForm', 'coins');
+    await page.selectOption('#calcCoinType', 'eagles');
+    await expect(page.locator('#weightUnitGroup')).toBeVisible();
+
+    // Junk — should be hidden
+    await page.selectOption('#calcForm', 'junk');
+    await expect(page.locator('#weightUnitGroup')).not.toBeVisible();
+
+    // Scrap — should be hidden (scrap has its own weight unit)
+    await page.selectOption('#calcForm', 'scrap');
+    await expect(page.locator('#weightUnitGroup')).not.toBeVisible();
+  });
+
+  test('weight unit dropdown hidden for pre-1933 coins', async ({ page }) => {
+    await page.selectOption('#calcForm', 'coins');
+    await page.selectOption('#calcCoinType', 'eagles');
+    await expect(page.locator('#weightUnitGroup')).toBeVisible();
+
+    await page.selectOption('#calcCoinType', 'pre33_20');
+    await expect(page.locator('#weightUnitGroup')).not.toBeVisible();
+  });
+
+  test('quantity label shows troy oz conversion when grams selected', async ({ page }) => {
+    await page.selectOption('#calcForm', 'bars');
+    await page.selectOption('#calcWeightUnit', 'g');
+    await page.fill('#calcQty', '31.1035');
+
+    const label = await page.textContent('#qtyLabel');
+    expect(label).toContain('toz');
+    expect(label).toContain('1.000');
+  });
+
+  test('logging a deal in grams stores correct troy oz qty, weightUnit, and rawQty', async ({ page }) => {
+    await page.selectOption('#calcForm', 'bars');
+    await page.selectOption('#calcWeightUnit', 'g');
+    await page.fill('#calcQty', '10');
+
+    // Dismiss any alert dialogs (e.g., receipt)
+    page.on('dialog', dialog => dialog.dismiss());
+    await page.click('#logDealBtn');
+
+    const tx = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions'));
+      return txs.find(t => t.id !== 'tx-val-1');
+    });
+
+    expect(tx).toBeTruthy();
+    // 10g = 10 / 31.1035 troy oz
+    expect(tx.qty).toBeCloseTo(10 / 31.1035, 3);
+    expect(tx.weightUnit).toBe('g');
+    expect(tx.rawQty).toBe(10);
+    expect(tx.lines[0].qty).toBeCloseTo(10 / 31.1035, 3);
+    expect(tx.lines[0].weightUnit).toBe('g');
+    expect(tx.lines[0].rawQty).toBe(10);
+  });
+});
