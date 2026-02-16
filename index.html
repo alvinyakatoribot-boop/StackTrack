@@ -1265,6 +1265,10 @@ tr.compliance-row-flagged {
             </select>
           </div>
           <div class="form-group full-width">
+            <label class="form-label">Notes (Optional)</label>
+            <input class="form-input" type="text" id="calcNotes" placeholder="Transaction notes...">
+          </div>
+          <div class="form-group full-width">
             <label class="form-label">Customer (Optional)</label>
             <div class="customer-selector-wrapper">
               <input class="customer-input" type="text" id="customerSearch" placeholder="Search or add customer..." autocomplete="off">
@@ -1684,6 +1688,7 @@ tr.compliance-row-flagged {
         <select class="form-select" id="editPayment">
           <option value="cash">Cash</option>
           <option value="wire">Bank Wire</option>
+          <option value="check">Check</option>
         </select>
       </div>
       <div class="form-group">
@@ -1691,6 +1696,10 @@ tr.compliance-row-flagged {
         <select class="form-select" id="editCustomer">
           <option value="">None</option>
         </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input class="form-input" type="text" id="editNotes" placeholder="Transaction notes...">
       </div>
       <div class="form-group" id="editForm8300Group" style="display:none;">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-primary);cursor:pointer;">
@@ -1796,14 +1805,14 @@ function getCustomerName(id) {
 function populateEditCustomerSelect() {
   const sel = $('editCustomer');
   sel.innerHTML = '<option value="">None</option>' +
-    customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    customers.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
 }
 
 function populateFilterCustomerSelect() {
   const sel = $('filterCustomer');
   const current = sel.value;
   sel.innerHTML = '<option value="">All</option>' +
-    customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    customers.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
   sel.value = current;
 }
 
@@ -1856,8 +1865,8 @@ function updateSpotDisplay() {
   document.getElementById('goldSpot').textContent = fmt(spotPrices.gold);
   document.getElementById('silverSpot').textContent = fmt(spotPrices.silver);
 
-  const goldPct = ((spotPrices.gold - spotPrices.goldPrev) / spotPrices.goldPrev * 100);
-  const silverPct = ((spotPrices.silver - spotPrices.silverPrev) / spotPrices.silverPrev * 100);
+  const goldPct = spotPrices.goldPrev ? ((spotPrices.gold - spotPrices.goldPrev) / spotPrices.goldPrev * 100) : 0;
+  const silverPct = spotPrices.silverPrev ? ((spotPrices.silver - spotPrices.silverPrev) / spotPrices.silverPrev * 100) : 0;
 
   const goldEl = document.getElementById('goldChange');
   goldEl.textContent = (goldPct >= 0 ? '+' : '') + goldPct.toFixed(2) + '%';
@@ -1916,6 +1925,11 @@ document.querySelectorAll('.nav-item').forEach(item => {
 const $ = id => document.getElementById(id);
 const fmt = (v) => '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtOz = (v) => v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
 
 function getFormLabel(form) {
   return { coins: 'Coins', bars: 'Bars', rounds: 'Rounds', junk: 'Junk Silver', scrap: 'Scrap' }[form] || form;
@@ -2145,7 +2159,8 @@ $('logDealBtn').addEventListener('click', () => {
     total: totalValue,
     payment: calcPayment.value,
     profit,
-    customerId: selectedCustomerIdInput.value || undefined
+    customerId: selectedCustomerIdInput.value || undefined,
+    notes: $('calcNotes').value.trim() || undefined
   };
 
   // Form 8300 compliance flag (single transaction)
@@ -2179,8 +2194,9 @@ $('logDealBtn').addEventListener('click', () => {
   // Show receipt
   showReceipt(tx.id);
 
-  // Reset qty and customer
+  // Reset qty, notes, and customer
   calcQty.value = '';
+  $('calcNotes').value = '';
   clearCustomer();
   recalcDeal();
   checkAlerts();
@@ -2252,7 +2268,7 @@ function renderTransactions() {
       <td>${tx.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>'}</td>
       <td>${getFormDisplayLabel(tx.form, tx.coinType)}</td>
       <td><span class="type-badge ${typeClass}">${getTypeLabel(tx.type)}</span></td>
-      <td>${getCustomerName(tx.customerId) || '—'}</td>
+      <td>${esc(getCustomerName(tx.customerId) || '—')}</td>
       <td class="mono">${qtyLabel}</td>
       <td class="mono">${fmt(tx.spot)}</td>
       <td class="mono">${fmt(tx.price)}</td>
@@ -2299,14 +2315,15 @@ $('exportCsvBtn').addEventListener('click', () => {
   const list = getFilteredTransactions();
   if (list.length === 0) return;
 
-  const headers = ['Date', 'Metal', 'Form', 'Coin Type', 'Type', 'Customer', 'Quantity', 'Spot Price', 'Our Price', 'Total', 'Payment', 'Profit', 'Form 8300'];
+  const headers = ['Date', 'Metal', 'Form', 'Coin Type', 'Type', 'Customer', 'Quantity', 'Spot Price', 'Our Price', 'Total', 'Payment', 'Profit', 'Form 8300', 'Notes'];
   const rows = list.map(tx => [
     new Date(tx.date).toLocaleString(),
     tx.metal, getFormLabel(tx.form), tx.coinType ? getCoinTypeLabel(tx.coinType) : '',
     getTypeLabel(tx.type),
     getCustomerName(tx.customerId),
     tx.qty, tx.spot, tx.price, tx.total, tx.payment, tx.profit,
-    tx.form8300Flag ? (tx.form8300Reviewed ? 'Reviewed' : 'Flagged') : ''
+    tx.form8300Flag ? (tx.form8300Reviewed ? 'Reviewed' : 'Flagged') : '',
+    tx.notes || ''
   ]);
 
   const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
@@ -2333,6 +2350,7 @@ window.openEditModal = function(id) {
   $('editSpot').value = tx.spot;
   $('editPrice').value = tx.price;
   $('editPayment').value = tx.payment;
+  $('editNotes').value = tx.notes || '';
   populateEditCustomerSelect();
   $('editCustomer').value = tx.customerId || '';
   // Form 8300 review toggle
@@ -2395,6 +2413,7 @@ $('editSaveBtn').addEventListener('click', () => {
     payment: editedPayment,
     profit,
     customerId: editedCustomerId,
+    notes: $('editNotes').value.trim() || undefined,
     form8300Flag: editedFlag || undefined,
     form8300Reviewed: editedFlag && existingFlag ? $('editForm8300Reviewed').checked : undefined
   };
@@ -2429,6 +2448,15 @@ $('deleteConfirmBtn').addEventListener('click', () => {
   });
 });
 
+// Close modals on Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    ['editModal', 'deleteModal', 'receiptModal', 'addCustomerModal'].forEach(id => {
+      $(id).classList.remove('open');
+    });
+  }
+});
+
 // ─── Receipt ───
 function generateReceipt(tx) {
   const d = new Date(tx.date);
@@ -2442,12 +2470,12 @@ function generateReceipt(tx) {
 
   return `
     <div class="receipt-header">
-      <div class="receipt-shop-name">${settings.shopName}</div>
+      <div class="receipt-shop-name">${esc(settings.shopName)}</div>
       <div class="receipt-subtitle">Bullion Transaction Receipt</div>
       <div class="receipt-date">${dateStr} at ${timeStr}</div>
       <div style="font-size:10px;color:#aaa;margin-top:4px;">Ref# ${txId}</div>
     </div>
-    ${tx.customerId ? `<div style="text-align:center;margin-bottom:12px;font-size:13px;color:#444;">Customer: <strong>${getCustomerName(tx.customerId)}</strong></div>` : ''}
+    ${tx.customerId ? `<div style="text-align:center;margin-bottom:12px;font-size:13px;color:#444;">Customer: <strong>${esc(getCustomerName(tx.customerId))}</strong></div>` : ''}
     <div style="text-align:center;margin-bottom:16px;">
       <span style="background:#f0f0f0;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px;">${typeLabel}</span>
     </div>
@@ -2550,10 +2578,12 @@ function getInventory() {
 function updateInventoryPage() {
   const { inv, totalGold, totalSilver } = getInventory();
 
-  $('invGoldOz').textContent = fmtOz(totalGold);
-  $('invSilverOz').textContent = fmtOz(totalSilver);
-  $('invGoldValue').textContent = fmt(totalGold * spotPrices.gold) + ' at spot';
-  $('invSilverValue').textContent = fmt(totalSilver * spotPrices.silver) + ' at spot';
+  $('invGoldOz').textContent = (totalGold < 0 ? '-' : '') + fmtOz(Math.abs(totalGold));
+  $('invSilverOz').textContent = (totalSilver < 0 ? '-' : '') + fmtOz(Math.abs(totalSilver));
+  $('invGoldOz').style.color = totalGold < 0 ? 'var(--red)' : '';
+  $('invSilverOz').style.color = totalSilver < 0 ? 'var(--red)' : '';
+  $('invGoldValue').textContent = (totalGold < 0 ? '-' : '') + fmt(totalGold * spotPrices.gold) + ' at spot';
+  $('invSilverValue').textContent = (totalSilver < 0 ? '-' : '') + fmt(totalSilver * spotPrices.silver) + ' at spot';
 
   // Breakdowns
   const forms = ['coins', 'bars', 'rounds', 'junk', 'scrap'];
@@ -2580,10 +2610,10 @@ function renderContacts() {
   empty.style.display = 'none';
   list.innerHTML = contacts.map((c, i) => `
     <div class="contact-row">
-      <span class="contact-name">${c.name}</span>
-      <span class="contact-company">${c.company}</span>
-      <span class="contact-phone">${c.phone}</span>
-      <span style="color:var(--text-muted);font-size:12px;flex:1;">${c.notes || ''}</span>
+      <span class="contact-name">${esc(c.name)}</span>
+      <span class="contact-company">${esc(c.company)}</span>
+      <span class="contact-phone">${esc(c.phone)}</span>
+      <span style="color:var(--text-muted);font-size:12px;flex:1;">${esc(c.notes || '')}</span>
       <button class="row-action-btn" onclick="deleteContact(${i})" title="Remove">🗑️</button>
     </div>
   `).join('');
@@ -2945,13 +2975,13 @@ customerSearchInput.addEventListener('input', () => {
 
   let html = matches.map(c => {
     const details = [c.phone, c.notes].filter(Boolean).join(' · ');
-    return `<div class="customer-dropdown-item" data-id="${c.id}">
-      <div class="customer-item-name">${c.name}</div>
-      ${details ? `<div class="customer-item-details">${details}</div>` : ''}
+    return `<div class="customer-dropdown-item" data-id="${esc(c.id)}">
+      <div class="customer-item-name">${esc(c.name)}</div>
+      ${details ? `<div class="customer-item-details">${esc(details)}</div>` : ''}
     </div>`;
   }).join('');
 
-  html += `<div class="customer-dropdown-item add-new" data-action="add">+ Add "${customerSearchInput.value.trim()}" as new customer</div>`;
+  html += `<div class="customer-dropdown-item add-new" data-action="add">+ Add "${esc(customerSearchInput.value.trim())}" as new customer</div>`;
 
   customerDropdown.innerHTML = html;
   customerDropdown.classList.add('open');
