@@ -1712,6 +1712,28 @@ tr.compliance-row-flagged.compliance-row-1099b {
   background: rgba(255, 152, 0, 0.15);
   color: #FF9800;
 }
+.cost-value {
+  font-size: 13px;
+  color: #aaa;
+  margin-top: 2px;
+}
+.unrealized-pnl {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.unrealized-pnl.positive { color: var(--green); }
+.unrealized-pnl.negative { color: var(--red); }
+.breakdown-cost {
+  font-size: 11px;
+  color: #888;
+  margin-left: 8px;
+}
+.inv-snapshot-cost {
+  font-size: 11px;
+  color: #888;
+  margin-left: 4px;
+}
 </style>
 </head>
 <body>
@@ -1795,11 +1817,13 @@ tr.compliance-row-flagged.compliance-row-1099b {
             <span class="inv-snapshot-label" style="color:var(--gold)">Gold</span>
             <span class="inv-snapshot-oz" id="dashGoldOz">0.000 oz</span>
             <span class="inv-snapshot-val" id="dashGoldVal">$0.00</span>
+            <span class="inv-snapshot-cost" id="dashGoldCost">$0.00 cost</span>
           </div>
           <div class="inv-snapshot-row">
             <span class="inv-snapshot-label" style="color:var(--silver)">Silver</span>
             <span class="inv-snapshot-oz" id="dashSilverOz">0.000 oz</span>
             <span class="inv-snapshot-val" id="dashSilverVal">$0.00</span>
+            <span class="inv-snapshot-cost" id="dashSilverCost">$0.00 cost</span>
           </div>
           <div class="inv-snapshot-row">
             <span class="inv-snapshot-label">Junk Silver</span>
@@ -2098,6 +2122,8 @@ tr.compliance-row-flagged.compliance-row-1099b {
         <div class="inventory-oz" id="invGoldOz">0.000</div>
         <div class="inventory-oz-label">troy ounces</div>
         <div class="inventory-value" id="invGoldValue">$0.00</div>
+        <div class="inventory-value cost-value" id="invGoldCost">$0.00 at cost</div>
+        <div class="unrealized-pnl" id="invGoldUnrealized">$0.00 unrealized</div>
         <div class="inventory-breakdown" id="invGoldBreakdown"></div>
       </div>
       <div class="inventory-card silver-card">
@@ -2105,6 +2131,8 @@ tr.compliance-row-flagged.compliance-row-1099b {
         <div class="inventory-oz" id="invSilverOz">0.000</div>
         <div class="inventory-oz-label">troy ounces</div>
         <div class="inventory-value" id="invSilverValue">$0.00</div>
+        <div class="inventory-value cost-value" id="invSilverCost">$0.00 at cost</div>
+        <div class="unrealized-pnl" id="invSilverUnrealized">$0.00 unrealized</div>
         <div class="inventory-breakdown" id="invSilverBreakdown"></div>
       </div>
     </div>
@@ -2177,6 +2205,7 @@ tr.compliance-row-flagged.compliance-row-1099b {
         <div class="pnl-card-label">Realized Profit</div>
         <div class="pnl-card-value green" id="pnlProfit">$0.00</div>
         <div class="pnl-card-sub" id="pnlMarginPct">0% margin</div>
+        <div class="pnl-card-sub" id="pnlFifoProfit">$0.00 FIFO basis</div>
       </div>
       <div class="pnl-card">
         <div class="pnl-card-label">Gold Holdings</div>
@@ -2208,6 +2237,14 @@ tr.compliance-row-flagged.compliance-row-1099b {
         <div>
           <div class="pnl-card-label">Inventory Value at Spot</div>
           <div class="pnl-card-value gold" id="pnlInvValue" style="font-size:22px;">$0.00</div>
+        </div>
+        <div>
+          <div class="pnl-card-label">Inventory at Cost</div>
+          <div class="pnl-card-value" id="pnlInvCost" style="font-size:22px;">$0.00</div>
+        </div>
+        <div>
+          <div class="pnl-card-label">Unrealized P&amp;L</div>
+          <div class="pnl-card-value" id="pnlUnrealized" style="font-size:22px;">$0.00</div>
         </div>
         <div>
           <div class="pnl-card-label">Running Capital</div>
@@ -3242,16 +3279,32 @@ function addLineToDeal() {
   if (deal.isJunk) {
     pricePerUnit = deal.pricePerUnit;
     totalValue = pricePerUnit * qty;
-    const spotValue = (deal.spot * settings.junkMultiplier) * qty;
-    profit = calcTxType === 'sell' ? totalValue - spotValue : spotValue - totalValue;
+    if (calcTxType === 'sell' || calcTxType === 'wholesale') {
+      const junkEffectiveQty = qty * settings.junkMultiplier;
+      const fifoCost = getFifoCostForSell(metal, form, junkEffectiveQty);
+      profit = totalValue - fifoCost;
+    } else {
+      const spotValue = (deal.spot * settings.junkMultiplier) * qty;
+      profit = spotValue - totalValue;
+    }
   } else if (isPre33(coinType)) {
     pricePerUnit = deal.pricePerOz;
     totalValue = pricePerUnit * effectiveQty;
-    profit = calcTxType === 'sell' ? (pricePerUnit - deal.spot) * effectiveQty : (deal.spot - pricePerUnit) * effectiveQty;
+    if (calcTxType === 'sell' || calcTxType === 'wholesale') {
+      const fifoCost = getFifoCostForSell(metal, form, effectiveQty);
+      profit = totalValue - fifoCost;
+    } else {
+      profit = (deal.spot - pricePerUnit) * effectiveQty;
+    }
   } else {
     pricePerUnit = deal.pricePerOz;
     totalValue = pricePerUnit * effectiveQty;
-    profit = calcTxType === 'sell' ? (pricePerUnit - deal.spot) * effectiveQty : (deal.spot - pricePerUnit) * effectiveQty;
+    if (calcTxType === 'sell' || calcTxType === 'wholesale') {
+      const fifoCost = getFifoCostForSell(metal, form, effectiveQty);
+      profit = totalValue - fifoCost;
+    } else {
+      profit = (deal.spot - pricePerUnit) * effectiveQty;
+    }
   }
 
   const line = {
@@ -4262,6 +4315,92 @@ function getInventory() {
   return { inv, totalGold, totalSilver };
 }
 
+function getCostBasis() {
+  const lots = {};
+  const forms = ['coins', 'bars', 'rounds', 'junk', 'scrap'];
+  ['gold', 'silver'].forEach(m => {
+    lots[m] = {};
+    forms.forEach(f => { lots[m][f] = []; });
+  });
+
+  const realizedByTx = {};
+  let totalRealizedPnl = 0;
+
+  const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+
+  sorted.forEach(tx => {
+    getTxLines(tx).forEach(line => {
+      const metal = line.metal;
+      const form = line.form;
+      const effectiveQty = form === 'junk' ? line.qty * settings.junkMultiplier
+                         : isPre33(line.coinType) ? line.qty * (PRE33_GOLD_CONTENT[line.coinType] || 1)
+                         : line.qty;
+
+      if (tx.type === 'buy') {
+        const costPerOz = effectiveQty > 0 ? line.total / effectiveQty : 0;
+        lots[metal][form].push({ qty: effectiveQty, costPerOz, date: tx.date, txId: tx.id });
+      } else {
+        let remaining = effectiveQty;
+        let costConsumed = 0;
+        const formLots = lots[metal][form];
+        while (remaining > 0.0001 && formLots.length > 0) {
+          const lot = formLots[0];
+          if (lot.qty <= remaining + 0.0001) {
+            costConsumed += lot.qty * lot.costPerOz;
+            remaining -= lot.qty;
+            formLots.shift();
+          } else {
+            costConsumed += remaining * lot.costPerOz;
+            lot.qty -= remaining;
+            remaining = 0;
+          }
+        }
+        const realized = line.total - costConsumed;
+        if (!realizedByTx[tx.id]) realizedByTx[tx.id] = 0;
+        realizedByTx[tx.id] += realized;
+        totalRealizedPnl += realized;
+      }
+    });
+  });
+
+  const summary = {};
+  let totalCostBasis = 0;
+  ['gold', 'silver'].forEach(m => {
+    summary[m] = {};
+    forms.forEach(f => {
+      const formLots = lots[m][f];
+      const qty = formLots.reduce((s, l) => s + l.qty, 0);
+      const totalCost = formLots.reduce((s, l) => s + l.qty * l.costPerOz, 0);
+      summary[m][f] = { qty, totalCost, avgCost: qty > 0.0001 ? totalCost / qty : 0, lots: formLots };
+      totalCostBasis += totalCost;
+    });
+  });
+
+  return { summary, totalCostBasis, totalRealizedPnl, realizedByTx };
+}
+
+function getFifoCostForSell(metal, form, qty) {
+  const { summary } = getCostBasis();
+  const formData = summary[metal] && summary[metal][form];
+  if (!formData || !formData.lots.length) return 0;
+
+  let remaining = qty;
+  let cost = 0;
+  const lotsClone = formData.lots.map(l => ({ ...l }));
+  while (remaining > 0.0001 && lotsClone.length > 0) {
+    const lot = lotsClone[0];
+    if (lot.qty <= remaining + 0.0001) {
+      cost += lot.qty * lot.costPerOz;
+      remaining -= lot.qty;
+      lotsClone.shift();
+    } else {
+      cost += remaining * lot.costPerOz;
+      remaining = 0;
+    }
+  }
+  return cost;
+}
+
 function updateInventoryPage() {
   const { inv, totalGold, totalSilver } = getInventory();
 
@@ -4271,6 +4410,22 @@ function updateInventoryPage() {
   $('invSilverOz').style.color = totalSilver < 0 ? 'var(--red)' : '';
   $('invGoldValue').textContent = (totalGold < 0 ? '-' : '') + fmt(totalGold * spotPrices.gold) + ' at spot';
   $('invSilverValue').textContent = (totalSilver < 0 ? '-' : '') + fmt(totalSilver * spotPrices.silver) + ' at spot';
+
+  // Cost basis
+  const cb = getCostBasis();
+  const goldCost = Object.values(cb.summary.gold).reduce((s, f) => s + f.totalCost, 0);
+  const silverCost = Object.values(cb.summary.silver).reduce((s, f) => s + f.totalCost, 0);
+  $('invGoldCost').textContent = fmt(goldCost) + ' at cost';
+  $('invSilverCost').textContent = fmt(silverCost) + ' at cost';
+
+  const goldSpotVal = totalGold * spotPrices.gold;
+  const silverSpotVal = totalSilver * spotPrices.silver;
+  const goldUnrealized = goldSpotVal - goldCost;
+  const silverUnrealized = silverSpotVal - silverCost;
+  $('invGoldUnrealized').textContent = (goldUnrealized >= 0 ? '+' : '-') + fmt(goldUnrealized) + ' unrealized';
+  $('invGoldUnrealized').className = 'unrealized-pnl ' + (goldUnrealized >= 0 ? 'positive' : 'negative');
+  $('invSilverUnrealized').textContent = (silverUnrealized >= 0 ? '+' : '-') + fmt(silverUnrealized) + ' unrealized';
+  $('invSilverUnrealized').className = 'unrealized-pnl ' + (silverUnrealized >= 0 ? 'positive' : 'negative');
 
   // Breakdowns with low-stock indicators
   const forms = ['coins', 'bars', 'rounds', 'junk', 'scrap'];
@@ -4286,7 +4441,9 @@ function updateInventoryPage() {
       if (isLow) {
         reorderAlerts.push({ metal, form: f, current: metalInv[f], threshold });
       }
-      return `<div class="breakdown-row${isLow ? ' low-stock' : ''}"><span>${isLow ? '<span class="reorder-dot"></span>' : ''}${getFormLabel(f)}</span><span class="breakdown-val">${fmtOz(metalInv[f])} oz</span></div>`;
+      const cbForm = cb.summary[metal][f];
+      const costLabel = cbForm && cbForm.avgCost > 0 ? `<span class="breakdown-cost">(avg ${fmt(cbForm.avgCost)}/oz)</span>` : '';
+      return `<div class="breakdown-row${isLow ? ' low-stock' : ''}"><span>${isLow ? '<span class="reorder-dot"></span>' : ''}${getFormLabel(f)}</span><span class="breakdown-val">${fmtOz(metalInv[f])} oz${costLabel}</span></div>`;
     })
     .join('');
 
@@ -4403,6 +4560,12 @@ function updatePnlPage() {
   const marginPct = revenue > 0 ? (totalProfit / revenue * 100).toFixed(1) : 0;
   $('pnlMarginPct').textContent = marginPct + '% margin';
 
+  // FIFO cost basis
+  const cb = getCostBasis();
+  const periodSellIds = periodTx.filter(t => t.type === 'sell' || t.type === 'wholesale').map(t => t.id);
+  const fifoProfit = periodSellIds.reduce((s, id) => s + (cb.realizedByTx[id] || 0), 0);
+  $('pnlFifoProfit').textContent = (fifoProfit >= 0 ? '+' : '-') + fmt(fifoProfit) + ' FIFO basis';
+
   const { totalGold, totalSilver } = getInventory();
   $('pnlGold').textContent = fmtOz(totalGold) + ' oz';
   $('pnlGoldVal').textContent = fmt(totalGold * spotPrices.gold) + ' at spot';
@@ -4422,6 +4585,10 @@ function updatePnlPage() {
   $('pnlCashIn').textContent = fmt(cashIn);
   $('pnlCashOut').textContent = fmt(cashOut);
   $('pnlInvValue').textContent = fmt(invValue);
+  $('pnlInvCost').textContent = fmt(cb.totalCostBasis);
+  const unrealized = invValue - cb.totalCostBasis;
+  $('pnlUnrealized').textContent = (unrealized >= 0 ? '+' : '-') + fmt(unrealized);
+  $('pnlUnrealized').style.color = unrealized >= 0 ? 'var(--green)' : 'var(--red)';
   $('pnlCapital').textContent = fmt(cashIn - cashOut + invValue);
 }
 
@@ -4958,6 +5125,13 @@ function updateDashboard() {
   $('dashSilverVal').textContent = fmt((totalSilver - junkOz) * spotPrices.silver);
   $('dashJunkOz').textContent = fmtOz(junkOz) + ' oz';
   $('dashJunkVal').textContent = fmt(junkOz * spotPrices.silver);
+
+  // Dashboard cost basis
+  const cb = getCostBasis();
+  const goldCost = Object.values(cb.summary.gold).reduce((s, f) => s + f.totalCost, 0);
+  const silverCost = Object.values(cb.summary.silver).reduce((s, f) => s + f.totalCost, 0);
+  $('dashGoldCost').textContent = fmt(goldCost) + ' cost';
+  $('dashSilverCost').textContent = fmt(silverCost) + ' cost';
 
   // Compliance action items
   const unfiled8300 = transactions.filter(t => t.form8300Flag && !t.form8300Reviewed).length;
