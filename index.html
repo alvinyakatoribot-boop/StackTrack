@@ -1,0 +1,2800 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StackTrack — Bullion Broker Platform</title>
+<style>
+/* ═══════════════════════════════════════ */
+/* CSS VARIABLES & THEMES                 */
+/* ═══════════════════════════════════════ */
+:root {
+  --gold: #C9A84C;
+  --gold-dim: #A8893A;
+  --silver: #A8A8A8;
+  --silver-dim: #888888;
+  --green: #4CAF50;
+  --red: #E53935;
+  --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --radius: 8px;
+  --transition: 0.2s ease;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --bg-card: #1a1a1a;
+  --bg-input: #111111;
+  --border: #2a2a2a;
+  --border-focus: var(--gold);
+  --text-primary: #e8e8e8;
+  --text-secondary: #999999;
+  --text-muted: #666666;
+  --header-bg: #0d0d0d;
+  --nav-bg: #111111;
+  --nav-active: var(--gold);
+  --nav-hover: #1e1e1e;
+  --btn-primary-bg: var(--gold);
+  --btn-primary-text: #0a0a0a;
+  --btn-secondary-bg: #222222;
+  --btn-secondary-text: #ccc;
+  --alert-bg: #2a1010;
+  --alert-border: var(--red);
+}
+
+[data-theme="light"] {
+  --bg-primary: #f5f5f5;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-input: #f9f9f9;
+  --border: #e0e0e0;
+  --border-focus: var(--gold);
+  --text-primary: #1a1a1a;
+  --text-secondary: #555555;
+  --text-muted: #999999;
+  --header-bg: #ffffff;
+  --nav-bg: #fafafa;
+  --nav-active: var(--gold);
+  --nav-hover: #f0f0f0;
+  --btn-primary-bg: var(--gold);
+  --btn-primary-text: #ffffff;
+  --btn-secondary-bg: #e8e8e8;
+  --btn-secondary-text: #333;
+  --alert-bg: #fff0f0;
+  --alert-border: var(--red);
+}
+
+/* ═══════════════════════════════════════ */
+/* RESET & BASE                           */
+/* ═══════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background var(--transition), color var(--transition);
+}
+
+/* ═══════════════════════════════════════ */
+/* HEADER                                 */
+/* ═══════════════════════════════════════ */
+.header {
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.logo span:first-child { color: var(--gold); }
+.logo span:last-child { color: var(--text-secondary); }
+
+.shop-name {
+  font-size: 13px;
+  color: var(--text-muted);
+  border-left: 1px solid var(--border);
+  padding-left: 16px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.spot-prices {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.spot-price-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spot-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.spot-label.gold { color: var(--gold); }
+.spot-label.silver { color: var(--silver); }
+
+.spot-value {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.spot-change {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.spot-change.up { color: var(--green); background: rgba(76, 175, 80, 0.1); }
+.spot-change.down { color: var(--red); background: rgba(229, 57, 53, 0.1); }
+
+.spot-updated {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+.spot-warning {
+  font-size: 10px;
+  color: var(--red);
+  display: none;
+}
+
+/* Theme toggle */
+.theme-toggle {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 16px;
+  width: 56px;
+  height: 28px;
+  position: relative;
+}
+
+.theme-toggle .toggle-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--gold);
+  position: absolute;
+  transition: transform var(--transition);
+  transform: translateX(0);
+}
+
+[data-theme="light"] .theme-toggle .toggle-thumb {
+  transform: translateX(28px);
+}
+
+.theme-toggle .icon {
+  width: 20px;
+  text-align: center;
+  font-size: 12px;
+  z-index: 1;
+}
+
+/* ═══════════════════════════════════════ */
+/* NAVIGATION                             */
+/* ═══════════════════════════════════════ */
+.nav {
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  padding: 0 24px;
+}
+
+.nav-item {
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+.nav-item:hover {
+  color: var(--text-primary);
+  background: var(--nav-hover);
+}
+
+.nav-item.active {
+  color: var(--nav-active);
+  border-bottom-color: var(--nav-active);
+}
+
+/* ═══════════════════════════════════════ */
+/* MAIN CONTENT                           */
+/* ═══════════════════════════════════════ */
+.main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page { display: none; }
+.page.active { display: block; }
+
+/* ═══════════════════════════════════════ */
+/* INVENTORY ALERT BANNER                 */
+/* ═══════════════════════════════════════ */
+.alert-banner {
+  background: var(--alert-bg);
+  border: 1px solid var(--alert-border);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  margin-bottom: 20px;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+  color: var(--red);
+  font-size: 14px;
+}
+
+.alert-banner.visible { display: flex; }
+.alert-banner .alert-icon { font-size: 18px; }
+
+/* ═══════════════════════════════════════ */
+/* CARDS                                  */
+/* ═══════════════════════════════════════ */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ═══════════════════════════════════════ */
+/* DEAL CALCULATOR                        */
+/* ═══════════════════════════════════════ */
+.calc-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.calc-inputs .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+
+.form-select, .form-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: var(--sans);
+  transition: border-color var(--transition);
+  outline: none;
+  width: 100%;
+}
+
+.form-select:focus, .form-input:focus {
+  border-color: var(--border-focus);
+}
+
+.form-input[type="number"] {
+  font-family: var(--mono);
+}
+
+/* Segment control for transaction type */
+.segment-control {
+  display: flex;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segment-btn {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.segment-btn:hover {
+  color: var(--text-primary);
+  background: var(--nav-hover);
+}
+
+.segment-btn.active {
+  background: var(--gold);
+  color: #0a0a0a;
+}
+
+/* ═══════════════════════════════════════ */
+/* CALCULATOR OUTPUT                      */
+/* ═══════════════════════════════════════ */
+.calc-output {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.output-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.output-row:last-child { border-bottom: none; }
+
+.output-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.output-value {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.output-value.gold { color: var(--gold); }
+.output-value.green { color: var(--green); }
+.output-value.large {
+  font-size: 28px;
+}
+
+.output-value.profit-highlight {
+  color: var(--green);
+  font-size: 24px;
+}
+
+.log-deal-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--gold);
+  color: #0a0a0a;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: opacity var(--transition);
+  margin-top: 8px;
+}
+
+.log-deal-btn:hover { opacity: 0.85; }
+.log-deal-btn:active { opacity: 0.7; }
+
+.log-deal-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.deal-logged-msg {
+  text-align: center;
+  color: var(--green);
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 8px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.deal-logged-msg.show { opacity: 1; }
+
+/* ═══════════════════════════════════════ */
+/* TRANSACTION LOG                        */
+/* ═══════════════════════════════════════ */
+.filters-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  align-items: flex-end;
+}
+
+.filters-bar .form-group { min-width: 140px; }
+
+.filter-btn, .export-btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all var(--transition);
+  white-space: nowrap;
+  align-self: flex-end;
+}
+
+.export-btn {
+  background: var(--gold);
+  color: #0a0a0a;
+  border-color: var(--gold);
+}
+
+.filter-btn:hover, .export-btn:hover { opacity: 0.85; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+th:hover { color: var(--text-secondary); }
+th .sort-arrow { font-size: 10px; margin-left: 4px; }
+
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+td.mono {
+  font-family: var(--mono);
+}
+
+td.profit-positive { color: var(--green); font-family: var(--mono); }
+td.profit-negative { color: var(--red); font-family: var(--mono); }
+
+.type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.type-badge.buy { background: rgba(76, 175, 80, 0.15); color: var(--green); }
+.type-badge.sell { background: rgba(201, 168, 76, 0.15); color: var(--gold); }
+.type-badge.wholesale { background: rgba(168, 168, 168, 0.15); color: var(--silver); }
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.row-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  opacity: 0.5;
+  transition: opacity var(--transition);
+}
+
+.row-action-btn:hover { opacity: 1; }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* ═══════════════════════════════════════ */
+/* INVENTORY                              */
+/* ═══════════════════════════════════════ */
+.inventory-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.inventory-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  text-align: center;
+}
+
+.inventory-card.gold-card { border-top: 3px solid var(--gold); }
+.inventory-card.silver-card { border-top: 3px solid var(--silver); }
+
+.inventory-metal-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.inventory-metal-label.gold { color: var(--gold); }
+.inventory-metal-label.silver { color: var(--silver); }
+
+.inventory-oz {
+  font-family: var(--mono);
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.inventory-oz-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.inventory-value {
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+
+.inventory-breakdown {
+  margin-top: 16px;
+  text-align: left;
+  font-size: 12px;
+}
+
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  color: var(--text-secondary);
+}
+
+.breakdown-row .breakdown-val {
+  font-family: var(--mono);
+  color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════ */
+/* WHOLESALE CONTACTS                     */
+/* ═══════════════════════════════════════ */
+.contacts-list {
+  display: grid;
+  gap: 8px;
+}
+
+.contact-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+}
+
+.contact-name { font-weight: 600; flex: 1; }
+.contact-company { color: var(--text-secondary); font-size: 13px; flex: 1; }
+.contact-phone { font-family: var(--mono); font-size: 13px; color: var(--text-muted); }
+
+/* ═══════════════════════════════════════ */
+/* CUSTOMER SELECTOR                      */
+/* ═══════════════════════════════════════ */
+.customer-selector-wrapper {
+  position: relative;
+}
+
+.customer-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 32px 10px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: var(--sans);
+  transition: border-color var(--transition);
+  outline: none;
+  width: 100%;
+}
+
+.customer-input:focus { border-color: var(--border-focus); }
+
+.customer-input.has-selection {
+  border-color: var(--gold);
+  font-weight: 600;
+}
+
+.customer-clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  display: none;
+}
+
+.customer-clear-btn.visible { display: block; }
+.customer-clear-btn:hover { color: var(--text-primary); }
+
+.customer-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0 0 6px 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 50;
+  display: none;
+}
+
+.customer-dropdown.open { display: block; }
+
+.customer-dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background var(--transition);
+  border-bottom: 1px solid var(--border);
+}
+
+.customer-dropdown-item:last-child { border-bottom: none; }
+.customer-dropdown-item:hover { background: var(--nav-hover); }
+
+.customer-dropdown-item.add-new {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.customer-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.customer-item-details {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ═══════════════════════════════════════ */
+/* P&L DASHBOARD                          */
+/* ═══════════════════════════════════════ */
+.pnl-period-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.period-btn {
+  padding: 8px 20px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all var(--transition);
+}
+
+.period-btn.active {
+  background: var(--gold);
+  color: #0a0a0a;
+  border-color: var(--gold);
+}
+
+.pnl-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.pnl-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.pnl-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.pnl-card-value {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pnl-card-value.green { color: var(--green); }
+.pnl-card-value.gold { color: var(--gold); }
+
+.pnl-card-sub {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════ */
+/* SETTINGS                               */
+/* ═══════════════════════════════════════ */
+.settings-section {
+  margin-bottom: 32px;
+}
+
+.settings-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.settings-grid .form-group label {
+  font-size: 12px;
+}
+
+.settings-save-btn {
+  padding: 12px 32px;
+  border: none;
+  border-radius: 6px;
+  background: var(--gold);
+  color: #0a0a0a;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: opacity var(--transition);
+  margin-top: 12px;
+}
+
+.settings-save-btn:hover { opacity: 0.85; }
+
+.save-confirm {
+  display: inline-block;
+  margin-left: 12px;
+  color: var(--green);
+  font-weight: 600;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.save-confirm.show { opacity: 1; }
+
+/* ═══════════════════════════════════════ */
+/* MODAL                                  */
+/* ═══════════════════════════════════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.modal-btn {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.modal-btn.primary {
+  background: var(--gold);
+  color: #0a0a0a;
+  border-color: var(--gold);
+}
+
+.modal-btn.secondary {
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+}
+
+.modal-btn.danger {
+  background: var(--red);
+  color: white;
+  border-color: var(--red);
+}
+
+/* ═══════════════════════════════════════ */
+/* RECEIPT                                */
+/* ═══════════════════════════════════════ */
+.receipt-content {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: #111;
+  background: #fff;
+  padding: 32px;
+  border-radius: var(--radius);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.receipt-content .receipt-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px dashed #ccc;
+}
+
+.receipt-content .receipt-shop-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 4px;
+}
+
+.receipt-content .receipt-subtitle {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.receipt-content .receipt-date {
+  font-size: 12px;
+  color: #666;
+  margin-top: 8px;
+}
+
+.receipt-content .receipt-body {
+  margin-bottom: 20px;
+}
+
+.receipt-content .receipt-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px dotted #ddd;
+}
+
+.receipt-content .receipt-row:last-child { border-bottom: none; }
+
+.receipt-content .receipt-label {
+  color: #666;
+  font-size: 12px;
+}
+
+.receipt-content .receipt-val {
+  font-weight: 700;
+  color: #111;
+  font-size: 13px;
+}
+
+.receipt-content .receipt-total {
+  text-align: center;
+  margin: 20px 0;
+  padding: 16px 0;
+  border-top: 2px dashed #ccc;
+  border-bottom: 2px dashed #ccc;
+}
+
+.receipt-content .receipt-total-label {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.receipt-content .receipt-total-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111;
+  margin-top: 4px;
+}
+
+.receipt-content .receipt-footer {
+  text-align: center;
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 16px;
+}
+
+.receipt-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+@media print {
+  body * { visibility: hidden; }
+  .receipt-content, .receipt-content * { visibility: visible; }
+  .receipt-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px;
+    box-shadow: none;
+  }
+  .modal-overlay, .modal, .receipt-actions { display: none !important; }
+  .receipt-content { display: block !important; visibility: visible !important; }
+}
+
+/* ═══════════════════════════════════════ */
+/* COMPLIANCE (FORM 8300)                 */
+/* ═══════════════════════════════════════ */
+.compliance-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(229, 57, 53, 0.15);
+  color: var(--red);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.compliance-warning {
+  background: rgba(255, 179, 0, 0.1);
+  border: 1px solid #FFB300;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #FFB300;
+  display: none;
+  gap: 8px;
+  align-items: flex-start;
+  line-height: 1.4;
+}
+
+.compliance-warning.visible { display: flex; }
+
+.compliance-warning .compliance-icon { font-size: 16px; flex-shrink: 0; }
+
+.compliance-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+tr.compliance-row-flagged {
+  border-left: 3px solid var(--red);
+  background: rgba(229, 57, 53, 0.04);
+}
+
+/* ═══════════════════════════════════════ */
+/* RESPONSIVE                             */
+/* ═══════════════════════════════════════ */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  .header-right { flex-wrap: wrap; justify-content: center; }
+  .spot-prices { flex-wrap: wrap; justify-content: center; }
+  .nav { overflow-x: auto; padding: 0 12px; }
+  .nav-item { padding: 10px 14px; font-size: 12px; }
+  .main { padding: 16px; }
+  .calc-layout { grid-template-columns: 1fr; }
+  .inventory-grid { grid-template-columns: 1fr; }
+  .pnl-grid { grid-template-columns: 1fr; }
+  .settings-grid { grid-template-columns: 1fr; }
+  .filters-bar { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo"><span>STACK</span><span>TRACK</span></div>
+    <div class="shop-name" id="shopNameDisplay">My Bullion Shop</div>
+  </div>
+  <div class="header-right">
+    <div class="spot-prices">
+      <div class="spot-price-item">
+        <span class="spot-label gold">GOLD</span>
+        <span class="spot-value" id="goldSpot">$2,345.60</span>
+        <span class="spot-change up" id="goldChange">+0.42%</span>
+      </div>
+      <div class="spot-price-item">
+        <span class="spot-label silver">SILVER</span>
+        <span class="spot-value" id="silverSpot">$30.15</span>
+        <span class="spot-change up" id="silverChange">+0.28%</span>
+      </div>
+      <div>
+        <div class="spot-updated" id="spotUpdated">Updated just now</div>
+        <div class="spot-warning" id="spotWarning">API unavailable — showing last known price</div>
+      </div>
+    </div>
+    <div class="theme-toggle" id="themeToggle" title="Toggle theme">
+      <span class="icon">🌙</span>
+      <span class="icon">☀️</span>
+      <div class="toggle-thumb"></div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════ NAVIGATION ═══════════════ -->
+<nav class="nav">
+  <div class="nav-item active" data-page="calculator">Calculator</div>
+  <div class="nav-item" data-page="transactions">Transactions</div>
+  <div class="nav-item" data-page="inventory">Inventory</div>
+  <div class="nav-item" data-page="pnl">P&L</div>
+  <div class="nav-item" data-page="settings">Settings</div>
+</nav>
+
+<!-- ═══════════════ ALERT BANNER ═══════════════ -->
+<div class="main">
+  <div class="alert-banner" id="alertBanner">
+    <span class="alert-icon">⚠</span>
+    <span id="alertText">Inventory threshold exceeded — consider wholesaling</span>
+  </div>
+
+  <!-- ═══════════════ CALCULATOR PAGE ═══════════════ -->
+  <div class="page active" id="page-calculator">
+    <div class="calc-layout">
+      <div class="card calc-inputs">
+        <div class="card-title">Deal Calculator</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Metal</label>
+            <select class="form-select" id="calcMetal">
+              <option value="gold">Gold</option>
+              <option value="silver">Silver</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Form</label>
+            <select class="form-select" id="calcForm">
+              <option value="coins">Coins</option>
+              <option value="bars">Bars</option>
+              <option value="rounds">Rounds</option>
+              <option value="junk">Junk Silver (90%)</option>
+              <option value="scrap">Other Scrap</option>
+            </select>
+          </div>
+          <div class="form-group" id="coinTypeGroup">
+            <label class="form-label">Coin Type</label>
+            <select class="form-select" id="calcCoinType">
+              <option value="eagles">American Eagles</option>
+              <option value="maples">Maple Leafs</option>
+              <option value="krugerrands">Krugerrands</option>
+              <option value="britannias">Britannias</option>
+              <option value="philharmonics">Philharmonics</option>
+            </select>
+          </div>
+          <div class="form-group full-width">
+            <label class="form-label">Transaction Type</label>
+            <div class="segment-control" id="calcType">
+              <button class="segment-btn active" data-value="buy">Buying from Customer</button>
+              <button class="segment-btn" data-value="sell">Selling to Customer</button>
+              <button class="segment-btn" data-value="wholesale">Wholesaling</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" id="qtyLabel">Quantity (Troy Oz)</label>
+            <input class="form-input" type="number" id="calcQty" placeholder="0.000" step="any" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Payment Method</label>
+            <select class="form-select" id="calcPayment">
+              <option value="cash">Cash</option>
+              <option value="wire">Bank Wire</option>
+              <option value="check">Check</option>
+            </select>
+          </div>
+          <div class="form-group full-width">
+            <label class="form-label">Customer (Optional)</label>
+            <div class="customer-selector-wrapper">
+              <input class="customer-input" type="text" id="customerSearch" placeholder="Search or add customer..." autocomplete="off">
+              <button class="customer-clear-btn" id="customerClearBtn" type="button">&times;</button>
+              <div class="customer-dropdown" id="customerDropdown"></div>
+              <input type="hidden" id="selectedCustomerId">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card calc-output" id="calcOutput">
+        <div class="card-title">Deal Summary</div>
+        <div class="output-row">
+          <span class="output-label">Current Spot Price</span>
+          <span class="output-value gold" id="outSpot">$0.00</span>
+        </div>
+        <div class="output-row">
+          <span class="output-label" id="outPriceLabel">Our Buy Price / oz</span>
+          <span class="output-value" id="outPrice">$0.00</span>
+        </div>
+        <div class="output-row">
+          <span class="output-label">Margin / oz</span>
+          <span class="output-value green" id="outMargin">$0.00</span>
+        </div>
+        <div class="output-row">
+          <span class="output-label">Total Transaction Value</span>
+          <span class="output-value large" id="outTotal">$0.00</span>
+        </div>
+        <div class="output-row">
+          <span class="output-label">Total Profit on Deal</span>
+          <span class="output-value profit-highlight" id="outProfit">$0.00</span>
+        </div>
+        <div class="compliance-warning" id="cashWarning">
+          <span class="compliance-icon">⚠</span>
+          <div>
+            <div id="cashWarningText">Cash transaction ≥ $10,000 — Form 8300 reporting required</div>
+            <div id="cashWarningCustomer" style="font-size:12px;margin-top:4px;color:#e0a000;display:none;">Customer required for compliance</div>
+          </div>
+        </div>
+        <button class="log-deal-btn" id="logDealBtn" disabled>Log This Deal</button>
+        <div class="deal-logged-msg" id="dealLoggedMsg">Deal logged successfully!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TRANSACTIONS PAGE ═══════════════ -->
+  <div class="page" id="page-transactions">
+    <div class="card">
+      <div class="card-title">Transaction Log</div>
+      <div class="filters-bar">
+        <div class="form-group">
+          <label class="form-label">From</label>
+          <input class="form-input" type="date" id="filterFrom">
+        </div>
+        <div class="form-group">
+          <label class="form-label">To</label>
+          <input class="form-input" type="date" id="filterTo">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Metal</label>
+          <select class="form-select" id="filterMetal">
+            <option value="">All</option>
+            <option value="gold">Gold</option>
+            <option value="silver">Silver</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Form</label>
+          <select class="form-select" id="filterForm">
+            <option value="">All</option>
+            <option value="coins">Coins</option>
+            <option value="bars">Bars</option>
+            <option value="rounds">Rounds</option>
+            <option value="junk">Junk Silver</option>
+            <option value="scrap">Scrap</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-select" id="filterType">
+            <option value="">All</option>
+            <option value="buy">Retail Buy</option>
+            <option value="sell">Retail Sell</option>
+            <option value="wholesale">Wholesale</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Customer</label>
+          <select class="form-select" id="filterCustomer">
+            <option value="">All</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Compliance</label>
+          <select class="form-select" id="filterCompliance">
+            <option value="">All</option>
+            <option value="flagged">Flagged</option>
+            <option value="needs-review">Needs Review</option>
+            <option value="reviewed">Reviewed</option>
+          </select>
+        </div>
+        <button class="filter-btn" id="clearFiltersBtn">Clear</button>
+        <button class="export-btn" id="exportCsvBtn">Export CSV</button>
+      </div>
+      <div style="overflow-x: auto;">
+        <table id="txTable">
+          <thead>
+            <tr>
+              <th data-sort="date">Date <span class="sort-arrow">▼</span></th>
+              <th>Metal</th>
+              <th>Form</th>
+              <th data-sort="type">Type</th>
+              <th>Customer</th>
+              <th>Qty</th>
+              <th>Spot</th>
+              <th>Our Price</th>
+              <th data-sort="total">Total</th>
+              <th>Payment</th>
+              <th data-sort="profit">Profit</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="txBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="txEmpty">No transactions yet. Use the Calculator to log your first deal.</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ INVENTORY PAGE ═══════════════ -->
+  <div class="page" id="page-inventory">
+    <div class="inventory-grid">
+      <div class="inventory-card gold-card">
+        <div class="inventory-metal-label gold">Gold Holdings</div>
+        <div class="inventory-oz" id="invGoldOz">0.000</div>
+        <div class="inventory-oz-label">troy ounces</div>
+        <div class="inventory-value" id="invGoldValue">$0.00</div>
+        <div class="inventory-breakdown" id="invGoldBreakdown"></div>
+      </div>
+      <div class="inventory-card silver-card">
+        <div class="inventory-metal-label silver">Silver Holdings</div>
+        <div class="inventory-oz" id="invSilverOz">0.000</div>
+        <div class="inventory-oz-label">troy ounces</div>
+        <div class="inventory-value" id="invSilverValue">$0.00</div>
+        <div class="inventory-breakdown" id="invSilverBreakdown"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Wholesale Contact Directory</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <input class="form-input" type="text" id="contactName" placeholder="Name" style="flex:1;min-width:120px;">
+        <input class="form-input" type="text" id="contactCompany" placeholder="Company" style="flex:1;min-width:120px;">
+        <input class="form-input" type="text" id="contactPhone" placeholder="Phone" style="flex:1;min-width:120px;">
+        <input class="form-input" type="text" id="contactNotes" placeholder="Notes" style="flex:2;min-width:120px;">
+        <button class="filter-btn" id="addContactBtn" style="background:var(--gold);color:#0a0a0a;border-color:var(--gold);">Add</button>
+      </div>
+      <div class="contacts-list" id="contactsList"></div>
+      <div class="empty-state" id="contactsEmpty" style="padding:20px;">No wholesale contacts saved yet.</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ P&L PAGE ═══════════════ -->
+  <div class="page" id="page-pnl">
+    <div class="pnl-period-selector">
+      <button class="period-btn active" data-period="daily">Daily</button>
+      <button class="period-btn" data-period="weekly">Weekly</button>
+      <button class="period-btn" data-period="monthly">Monthly</button>
+    </div>
+    <div class="pnl-grid">
+      <div class="pnl-card">
+        <div class="pnl-card-label">Total Bought (Cost)</div>
+        <div class="pnl-card-value" id="pnlBought">$0.00</div>
+        <div class="pnl-card-sub" id="pnlBoughtCount">0 transactions</div>
+      </div>
+      <div class="pnl-card">
+        <div class="pnl-card-label">Total Sold (Revenue)</div>
+        <div class="pnl-card-value gold" id="pnlSold">$0.00</div>
+        <div class="pnl-card-sub" id="pnlSoldCount">0 transactions</div>
+      </div>
+      <div class="pnl-card">
+        <div class="pnl-card-label">Realized Profit</div>
+        <div class="pnl-card-value green" id="pnlProfit">$0.00</div>
+        <div class="pnl-card-sub" id="pnlMarginPct">0% margin</div>
+      </div>
+      <div class="pnl-card">
+        <div class="pnl-card-label">Gold Holdings</div>
+        <div class="pnl-card-value gold" id="pnlGold">0.000 oz</div>
+        <div class="pnl-card-sub" id="pnlGoldVal">$0.00 at spot</div>
+      </div>
+      <div class="pnl-card">
+        <div class="pnl-card-label">Silver Holdings</div>
+        <div class="pnl-card-value" id="pnlSilver" style="color:var(--silver)">0.000 oz</div>
+        <div class="pnl-card-sub" id="pnlSilverVal">$0.00 at spot</div>
+      </div>
+      <div class="pnl-card">
+        <div class="pnl-card-label">Wholesale Volume</div>
+        <div class="pnl-card-value" id="pnlWholesale">$0.00</div>
+        <div class="pnl-card-sub" id="pnlWholesaleCount">0 transactions</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Capital Position</div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;">
+        <div>
+          <div class="pnl-card-label">Cash In</div>
+          <div class="pnl-card-value" id="pnlCashIn" style="font-size:22px;">$0.00</div>
+        </div>
+        <div>
+          <div class="pnl-card-label">Cash Out</div>
+          <div class="pnl-card-value" id="pnlCashOut" style="font-size:22px;">$0.00</div>
+        </div>
+        <div>
+          <div class="pnl-card-label">Inventory Value at Spot</div>
+          <div class="pnl-card-value gold" id="pnlInvValue" style="font-size:22px;">$0.00</div>
+        </div>
+        <div>
+          <div class="pnl-card-label">Running Capital</div>
+          <div class="pnl-card-value green" id="pnlCapital" style="font-size:22px;">$0.00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SETTINGS PAGE ═══════════════ -->
+  <div class="page" id="page-settings">
+    <div class="card">
+      <div class="settings-section">
+        <div class="settings-section-title">Shop Info</div>
+        <div class="form-group" style="max-width:300px;">
+          <label class="form-label">Shop Name</label>
+          <input class="form-input" type="text" id="settingShopName" placeholder="My Bullion Shop">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Sell Premiums (Spot + %)</div>
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label">Coins %</label>
+            <input class="form-input" type="number" id="sellPremCoins" step="0.1" value="7">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bars & Rounds %</label>
+            <input class="form-input" type="number" id="sellPremBars" step="0.1" value="5">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Scrap %</label>
+            <input class="form-input" type="number" id="sellPremScrap" step="0.1" value="3">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Buy Discounts (Spot − %)</div>
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label">Coins %</label>
+            <input class="form-input" type="number" id="buyDiscCoins" step="0.1" value="3">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bars & Rounds %</label>
+            <input class="form-input" type="number" id="buyDiscBars" step="0.1" value="5">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Scrap %</label>
+            <input class="form-input" type="number" id="buyDiscScrap" step="0.1" value="8">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Wholesale Discounts (Spot − %)</div>
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label">Coins %</label>
+            <input class="form-input" type="number" id="whDiscCoins" step="0.1" value="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bars & Rounds %</label>
+            <input class="form-input" type="number" id="whDiscBars" step="0.1" value="2">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Scrap %</label>
+            <input class="form-input" type="number" id="whDiscScrap" step="0.1" value="3">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Coin Type Adjustments (added to base coins %)</div>
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label">American Eagles %</label>
+            <input class="form-input" type="number" id="adjEagles" step="0.1" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Maple Leafs %</label>
+            <input class="form-input" type="number" id="adjMaples" step="0.1" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Krugerrands %</label>
+            <input class="form-input" type="number" id="adjKrugerrands" step="0.1" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Britannias %</label>
+            <input class="form-input" type="number" id="adjBritannias" step="0.1" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Philharmonics %</label>
+            <input class="form-input" type="number" id="adjPhilharmonics" step="0.1" value="0">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Junk Silver</div>
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label">Divisor (default 1.3)</label>
+            <input class="form-input" type="number" id="junkDivisor" step="0.01" value="1.3">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Manual Multiplier Override</label>
+            <input class="form-input" type="number" id="junkMultOverride" step="0.1" placeholder="Leave blank for auto">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Wholesale Thresholds (Alert when inventory exceeds)</div>
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label">Gold (oz)</label>
+            <input class="form-input" type="number" id="threshGold" step="0.1" value="10">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Silver (oz)</label>
+            <input class="form-input" type="number" id="threshSilver" step="1" value="500">
+          </div>
+        </div>
+      </div>
+
+      <button class="settings-save-btn" id="saveSettingsBtn">Save Settings</button>
+      <span class="save-confirm" id="saveConfirm">Settings saved!</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ EDIT MODAL ═══════════════ -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-title" id="editModalTitle">Edit Transaction</div>
+    <input type="hidden" id="editTxId">
+    <div style="display:grid;gap:12px;">
+      <div class="form-group">
+        <label class="form-label">Metal</label>
+        <select class="form-select" id="editMetal">
+          <option value="gold">Gold</option>
+          <option value="silver">Silver</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Form</label>
+        <select class="form-select" id="editForm">
+          <option value="coins">Coins</option>
+          <option value="bars">Bars</option>
+          <option value="rounds">Rounds</option>
+          <option value="junk">Junk Silver</option>
+          <option value="scrap">Scrap</option>
+        </select>
+      </div>
+      <div class="form-group" id="editCoinTypeGroup" style="display:none;">
+        <label class="form-label">Coin Type</label>
+        <select class="form-select" id="editCoinType">
+          <option value="">None</option>
+          <option value="eagles">American Eagles</option>
+          <option value="maples">Maple Leafs</option>
+          <option value="krugerrands">Krugerrands</option>
+          <option value="britannias">Britannias</option>
+          <option value="philharmonics">Philharmonics</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="editType">
+          <option value="buy">Retail Buy</option>
+          <option value="sell">Retail Sell</option>
+          <option value="wholesale">Wholesale</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Quantity</label>
+        <input class="form-input" type="number" id="editQty" step="any">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Spot Price at Time</label>
+        <input class="form-input" type="number" id="editSpot" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Our Price / oz</label>
+        <input class="form-input" type="number" id="editPrice" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Payment Method</label>
+        <select class="form-select" id="editPayment">
+          <option value="cash">Cash</option>
+          <option value="wire">Bank Wire</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Customer</label>
+        <select class="form-select" id="editCustomer">
+          <option value="">None</option>
+        </select>
+      </div>
+      <div class="form-group" id="editForm8300Group" style="display:none;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-primary);cursor:pointer;">
+          <input type="checkbox" id="editForm8300Reviewed">
+          Marked as reviewed (Form 8300 filed)
+        </label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" id="editCancelBtn">Cancel</button>
+      <button class="modal-btn primary" id="editSaveBtn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ DELETE CONFIRM MODAL ═══════════════ -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title">Delete Transaction</div>
+    <p style="color:var(--text-secondary);margin-bottom:4px;">Are you sure? This cannot be undone.</p>
+    <input type="hidden" id="deleteTxId">
+    <div class="modal-actions">
+      <button class="modal-btn secondary" id="deleteCancelBtn">Cancel</button>
+      <button class="modal-btn danger" id="deleteConfirmBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ RECEIPT MODAL ═══════════════ -->
+<div class="modal-overlay" id="receiptModal">
+  <div class="modal" style="max-width:460px;padding:16px;">
+    <div class="receipt-content" id="receiptContent"></div>
+    <div class="receipt-actions">
+      <button class="modal-btn secondary" id="receiptCloseBtn">Close</button>
+      <button class="modal-btn primary" id="receiptPrintBtn">Print Receipt</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ ADD CUSTOMER MODAL ═══════════════ -->
+<div class="modal-overlay" id="addCustomerModal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title">Add New Customer</div>
+    <div style="display:grid;gap:12px;">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input class="form-input" type="text" id="newCustomerName" readonly>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input class="form-input" type="text" id="newCustomerPhone" placeholder="Phone number">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input class="form-input" type="text" id="newCustomerNotes" placeholder="Optional notes">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" id="addCustomerCancelBtn">Cancel</button>
+      <button class="modal-btn primary" id="addCustomerSaveBtn">Save Customer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   STACKTRACK — CORE APPLICATION
+   ═══════════════════════════════════════════════════════════ */
+
+// ─── Data Store ───
+const Store = {
+  get(key, fallback) {
+    try { const v = localStorage.getItem('st_' + key); return v ? JSON.parse(v) : fallback; }
+    catch { return fallback; }
+  },
+  set(key, val) { localStorage.setItem('st_' + key, JSON.stringify(val)); }
+};
+
+// ─── Default Settings ───
+const DEFAULT_SETTINGS = {
+  shopName: 'My Bullion Shop',
+  sellPremCoins: 7, sellPremBars: 5, sellPremScrap: 3,
+  buyDiscCoins: 3, buyDiscBars: 5, buyDiscScrap: 8,
+  whDiscCoins: 1, whDiscBars: 2, whDiscScrap: 3,
+  coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0 },
+  junkDivisor: 1.3, junkMultOverride: null,
+  threshGold: 10, threshSilver: 500
+};
+
+let settings = { ...DEFAULT_SETTINGS, ...Store.get('settings', {}) };
+if (!settings.coinAdjustments) settings.coinAdjustments = { ...DEFAULT_SETTINGS.coinAdjustments };
+let transactions = Store.get('transactions', []);
+let contacts = Store.get('contacts', []);
+let customers = Store.get('customers', []);
+let selectedCustomer = null;
+
+function getCustomerName(id) {
+  if (!id) return '';
+  const c = customers.find(c => c.id === id);
+  return c ? c.name : '';
+}
+
+function populateEditCustomerSelect() {
+  const sel = $('editCustomer');
+  sel.innerHTML = '<option value="">None</option>' +
+    customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+function populateFilterCustomerSelect() {
+  const sel = $('filterCustomer');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All</option>' +
+    customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  sel.value = current;
+}
+
+// ─── Spot Prices (Live via gold-api.com) ───
+let spotPrices = {
+  gold: 0,
+  silver: 0,
+  goldPrev: 0,
+  silverPrev: 0,
+  lastUpdated: 0,
+  apiFailed: false
+};
+
+async function fetchSpotPrices() {
+  try {
+    const [goldRes, silverRes] = await Promise.all([
+      fetch('https://api.gold-api.com/price/XAU'),
+      fetch('https://api.gold-api.com/price/XAG')
+    ]);
+
+    if (!goldRes.ok || !silverRes.ok) throw new Error('API response not OK');
+
+    const goldData = await goldRes.json();
+    const silverData = await silverRes.json();
+
+    if (!goldData.price || !silverData.price) throw new Error('Missing price data');
+
+    spotPrices.goldPrev = spotPrices.gold || goldData.price;
+    spotPrices.silverPrev = spotPrices.silver || silverData.price;
+    spotPrices.gold = goldData.price;
+    spotPrices.silver = silverData.price;
+    spotPrices.lastUpdated = Date.now();
+    spotPrices.apiFailed = false;
+
+    $('spotWarning').style.display = 'none';
+    updateSpotDisplay();
+    recalcDeal();
+    updateInventoryPage();
+    updatePnlPage();
+  } catch (err) {
+    console.warn('Spot price fetch failed:', err.message);
+    spotPrices.apiFailed = true;
+    $('spotWarning').style.display = 'block';
+    // Keep last known prices — don't zero them out
+  }
+}
+
+function updateSpotDisplay() {
+  const fmt = (v) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('goldSpot').textContent = fmt(spotPrices.gold);
+  document.getElementById('silverSpot').textContent = fmt(spotPrices.silver);
+
+  const goldPct = ((spotPrices.gold - spotPrices.goldPrev) / spotPrices.goldPrev * 100);
+  const silverPct = ((spotPrices.silver - spotPrices.silverPrev) / spotPrices.silverPrev * 100);
+
+  const goldEl = document.getElementById('goldChange');
+  goldEl.textContent = (goldPct >= 0 ? '+' : '') + goldPct.toFixed(2) + '%';
+  goldEl.className = 'spot-change ' + (goldPct >= 0 ? 'up' : 'down');
+
+  const silverEl = document.getElementById('silverChange');
+  silverEl.textContent = (silverPct >= 0 ? '+' : '') + silverPct.toFixed(2) + '%';
+  silverEl.className = 'spot-change ' + (silverPct >= 0 ? 'up' : 'down');
+
+  const ago = Math.round((Date.now() - spotPrices.lastUpdated) / 1000);
+  document.getElementById('spotUpdated').textContent = ago < 5 ? 'Updated just now' : `Updated ${ago}s ago`;
+}
+
+// Fetch live prices immediately, then every 60 seconds
+fetchSpotPrices();
+setInterval(fetchSpotPrices, 60000);
+// Update "ago" display every 10 seconds
+setInterval(() => {
+  if (spotPrices.lastUpdated === 0) {
+    document.getElementById('spotUpdated').textContent = 'Loading...';
+    return;
+  }
+  const ago = Math.round((Date.now() - spotPrices.lastUpdated) / 1000);
+  document.getElementById('spotUpdated').textContent = ago < 5 ? 'Updated just now' : `Updated ${ago}s ago`;
+}, 10000);
+
+// ─── Theme ───
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  Store.set('theme', theme);
+}
+
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme');
+  setTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+// Load saved theme
+setTheme(Store.get('theme', 'dark'));
+
+// ─── Navigation ───
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + item.dataset.page).classList.add('active');
+    // Refresh data on page switch
+    if (item.dataset.page === 'transactions') renderTransactions();
+    if (item.dataset.page === 'inventory') updateInventoryPage();
+    if (item.dataset.page === 'pnl') updatePnlPage();
+  });
+});
+
+// ─── Helpers ───
+const $ = id => document.getElementById(id);
+const fmt = (v) => '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtOz = (v) => v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+
+function getFormLabel(form) {
+  return { coins: 'Coins', bars: 'Bars', rounds: 'Rounds', junk: 'Junk Silver', scrap: 'Scrap' }[form] || form;
+}
+
+function getCoinTypeLabel(coinType) {
+  return { eagles: 'American Eagles', maples: 'Maple Leafs', krugerrands: 'Krugerrands', britannias: 'Britannias', philharmonics: 'Philharmonics' }[coinType] || '';
+}
+
+function getFormDisplayLabel(form, coinType) {
+  if (form === 'coins' && coinType) return 'Coins (' + getCoinTypeLabel(coinType) + ')';
+  return getFormLabel(form);
+}
+
+function getTypeLabel(type) {
+  return { buy: 'Retail Buy', sell: 'Retail Sell', wholesale: 'Wholesale' }[type] || type;
+}
+
+// ─── Pricing Engine ───
+function getMargin(txType, form, coinType) {
+  let base = 0;
+  if (txType === 'buy') {
+    if (form === 'coins') base = -settings.buyDiscCoins / 100;
+    else if (form === 'bars' || form === 'rounds') base = -settings.buyDiscBars / 100;
+    else if (form === 'scrap') base = -settings.buyDiscScrap / 100;
+  } else if (txType === 'sell') {
+    if (form === 'coins') base = settings.sellPremCoins / 100;
+    else if (form === 'bars' || form === 'rounds') base = settings.sellPremBars / 100;
+    else if (form === 'scrap') base = settings.sellPremScrap / 100;
+  } else if (txType === 'wholesale') {
+    if (form === 'coins') base = -settings.whDiscCoins / 100;
+    else if (form === 'bars' || form === 'rounds') base = -settings.whDiscBars / 100;
+    else if (form === 'scrap') base = -settings.whDiscScrap / 100;
+  }
+  if (form === 'coins' && coinType) {
+    const adj = (settings.coinAdjustments || {})[coinType] || 0;
+    if (txType === 'buy') base -= adj / 100;
+    else base += adj / 100;
+  }
+  return base;
+}
+
+function calcDealPrice(metal, form, txType, coinType) {
+  const spot = metal === 'gold' ? spotPrices.gold : spotPrices.silver;
+
+  if (form === 'junk') {
+    // Junk silver: multiplier-based
+    const multiplier = settings.junkMultOverride || (spot / settings.junkDivisor);
+    // For junk, the "price" is the multiplier * face value
+    // We still apply a margin adjustment for buy vs sell
+    let adj = 1;
+    if (txType === 'buy') adj = 1 - settings.buyDiscCoins / 100;
+    else if (txType === 'sell') adj = 1 + settings.sellPremCoins / 100;
+    else if (txType === 'wholesale') adj = 1 - settings.whDiscCoins / 100;
+    return { spot, pricePerUnit: multiplier * adj, multiplier, isJunk: true };
+  }
+
+  const margin = getMargin(txType, form, coinType);
+  const pricePerOz = spot * (1 + margin);
+  return { spot, pricePerOz, margin, isJunk: false };
+}
+
+// ─── Deal Calculator ───
+const calcMetal = $('calcMetal');
+const calcForm = $('calcForm');
+const calcQty = $('calcQty');
+const calcPayment = $('calcPayment');
+const calcTypeEl = $('calcType');
+let calcTxType = 'buy';
+
+// Transaction type segment control
+calcTypeEl.querySelectorAll('.segment-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    calcTypeEl.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    calcTxType = btn.dataset.value;
+    recalcDeal();
+  });
+});
+
+// Form select: lock to silver if junk selected, show/hide coin type
+calcForm.addEventListener('change', () => {
+  if (calcForm.value === 'junk') {
+    calcMetal.value = 'silver';
+    calcMetal.disabled = true;
+  } else {
+    calcMetal.disabled = false;
+  }
+  $('coinTypeGroup').style.display = calcForm.value === 'coins' ? '' : 'none';
+  updateQtyLabel();
+  recalcDeal();
+});
+
+$('calcCoinType').addEventListener('change', recalcDeal);
+
+calcMetal.addEventListener('change', recalcDeal);
+calcQty.addEventListener('input', recalcDeal);
+calcPayment.addEventListener('change', recalcDeal);
+
+function updateQtyLabel() {
+  $('qtyLabel').textContent = calcForm.value === 'junk' ? 'Face Value ($)' : 'Quantity (Troy Oz)';
+  calcQty.placeholder = calcForm.value === 'junk' ? '0.00' : '0.000';
+}
+
+function recalcDeal() {
+  const metal = calcMetal.value;
+  const form = calcForm.value;
+  const coinType = form === 'coins' ? $('calcCoinType').value : null;
+  const qty = parseFloat(calcQty.value) || 0;
+  const deal = calcDealPrice(metal, form, calcTxType, coinType);
+
+  if (deal.isJunk) {
+    $('outSpot').textContent = fmt(deal.spot) + '/oz';
+    $('outPriceLabel').textContent = (calcTxType === 'sell' ? 'Our Sell' : 'Our Buy') + ' Multiplier';
+    $('outPrice').textContent = deal.pricePerUnit.toFixed(2) + 'x face';
+
+    const spotMultiplier = deal.spot / settings.junkDivisor;
+    const marginPerDollar = Math.abs(deal.pricePerUnit - spotMultiplier);
+    $('outMargin').textContent = fmt(marginPerDollar) + ' / $face';
+
+    const totalValue = deal.pricePerUnit * qty;
+    $('outTotal').textContent = fmt(totalValue);
+
+    const spotValue = spotMultiplier * qty;
+    const profit = calcTxType === 'sell' ? totalValue - spotValue :
+                   calcTxType === 'buy' ? spotValue - totalValue :
+                   spotValue - totalValue;
+    $('outProfit').textContent = (profit >= 0 ? '+' : '-') + fmt(profit);
+  } else {
+    $('outSpot').textContent = fmt(deal.spot) + '/oz';
+    $('outPriceLabel').textContent = (calcTxType === 'sell' ? 'Our Sell' : 'Our Buy') + ' Price / oz';
+    $('outPrice').textContent = fmt(deal.pricePerOz);
+
+    const marginPerOz = Math.abs(deal.pricePerOz - deal.spot);
+    $('outMargin').textContent = fmt(marginPerOz) + ' / oz';
+
+    const totalValue = deal.pricePerOz * qty;
+    $('outTotal').textContent = fmt(totalValue);
+
+    const profit = calcTxType === 'sell' ? (deal.pricePerOz - deal.spot) * qty :
+                   calcTxType === 'buy' ? (deal.spot - deal.pricePerOz) * qty :
+                   (deal.spot - deal.pricePerOz) * qty;
+    $('outProfit').textContent = (profit >= 0 ? '+' : '-') + fmt(profit);
+  }
+
+  $('logDealBtn').disabled = qty <= 0;
+
+  // Form 8300 compliance warning
+  const payment = calcPayment.value;
+  const totalValue = deal.isJunk ? deal.pricePerUnit * qty : (deal.pricePerOz || 0) * qty;
+  const cashWarning = $('cashWarning');
+  if (payment === 'cash' && totalValue >= 10000 && qty > 0) {
+    cashWarning.classList.add('visible');
+    const hasCustomer = !!$('selectedCustomerId').value;
+    $('cashWarningCustomer').style.display = hasCustomer ? 'none' : 'block';
+  } else {
+    cashWarning.classList.remove('visible');
+  }
+}
+
+// ─── Log Deal ───
+$('logDealBtn').addEventListener('click', () => {
+  const metal = calcMetal.value;
+  const form = calcForm.value;
+  const coinType = form === 'coins' ? $('calcCoinType').value : null;
+  const qty = parseFloat(calcQty.value) || 0;
+  if (qty <= 0) return;
+
+  const deal = calcDealPrice(metal, form, calcTxType, coinType);
+  let pricePerUnit, totalValue, profit;
+
+  if (deal.isJunk) {
+    pricePerUnit = deal.pricePerUnit;
+    totalValue = pricePerUnit * qty;
+    const spotValue = (deal.spot / settings.junkDivisor) * qty;
+    profit = calcTxType === 'sell' ? totalValue - spotValue :
+             spotValue - totalValue;
+  } else {
+    pricePerUnit = deal.pricePerOz;
+    totalValue = pricePerUnit * qty;
+    profit = calcTxType === 'sell' ? (pricePerUnit - deal.spot) * qty :
+             (deal.spot - pricePerUnit) * qty;
+  }
+
+  const selectedCustomerIdInput = $('selectedCustomerId');
+  const tx = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    date: new Date().toISOString(),
+    metal,
+    form,
+    coinType: coinType || undefined,
+    type: calcTxType,
+    qty,
+    spot: deal.spot,
+    price: pricePerUnit,
+    total: totalValue,
+    payment: calcPayment.value,
+    profit,
+    customerId: selectedCustomerIdInput.value || undefined
+  };
+
+  // Form 8300 compliance flag
+  if (tx.payment === 'cash' && tx.total >= 10000) {
+    tx.form8300Flag = true;
+  }
+
+  transactions.unshift(tx);
+  Store.set('transactions', transactions);
+
+  // Flash success message
+  const msg = $('dealLoggedMsg');
+  msg.classList.add('show');
+  setTimeout(() => msg.classList.remove('show'), 2000);
+
+  // Show receipt
+  showReceipt(tx.id);
+
+  // Reset qty and customer
+  calcQty.value = '';
+  clearCustomer();
+  recalcDeal();
+  checkAlerts();
+});
+
+// ─── Transaction Log ───
+let sortField = 'date';
+let sortDir = -1; // -1 = desc
+
+function getFilteredTransactions() {
+  let list = [...transactions];
+  const from = $('filterFrom').value;
+  const to = $('filterTo').value;
+  const metal = $('filterMetal').value;
+  const form = $('filterForm').value;
+  const type = $('filterType').value;
+  const customerId = $('filterCustomer').value;
+  const compliance = $('filterCompliance').value;
+
+  if (from) list = list.filter(t => t.date >= from);
+  if (to) list = list.filter(t => t.date <= to + 'T23:59:59');
+  if (metal) list = list.filter(t => t.metal === metal);
+  if (form) list = list.filter(t => t.form === form);
+  if (type) list = list.filter(t => t.type === type);
+  if (customerId) list = list.filter(t => t.customerId === customerId);
+  if (compliance === 'flagged') list = list.filter(t => t.form8300Flag);
+  else if (compliance === 'needs-review') list = list.filter(t => t.form8300Flag && !t.form8300Reviewed);
+  else if (compliance === 'reviewed') list = list.filter(t => t.form8300Flag && t.form8300Reviewed);
+
+  list.sort((a, b) => {
+    let va, vb;
+    if (sortField === 'date') { va = a.date; vb = b.date; }
+    else if (sortField === 'total') { va = a.total; vb = b.total; }
+    else if (sortField === 'profit') { va = a.profit; vb = b.profit; }
+    else { va = a[sortField]; vb = b[sortField]; }
+    if (va < vb) return -1 * sortDir;
+    if (va > vb) return 1 * sortDir;
+    return 0;
+  });
+
+  return list;
+}
+
+function renderTransactions() {
+  const list = getFilteredTransactions();
+  const tbody = $('txBody');
+  const empty = $('txEmpty');
+
+  if (list.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  tbody.innerHTML = list.map(tx => {
+    const d = new Date(tx.date);
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+                    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const typeClass = tx.type === 'buy' ? 'buy' : tx.type === 'sell' ? 'sell' : 'wholesale';
+    const profitClass = tx.profit >= 0 ? 'profit-positive' : 'profit-negative';
+    const qtyLabel = tx.form === 'junk' ? '$' + fmtOz(tx.qty) + ' FV' : fmtOz(tx.qty) + ' oz';
+
+    const flagBadge = tx.form8300Flag ? '<span class="compliance-badge">8300</span>' : '';
+    const rowClass = tx.form8300Flag ? ' class="compliance-row-flagged"' : '';
+
+    return `<tr${rowClass}>
+      <td class="mono">${dateStr}</td>
+      <td>${tx.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>'}</td>
+      <td>${getFormDisplayLabel(tx.form, tx.coinType)}</td>
+      <td><span class="type-badge ${typeClass}">${getTypeLabel(tx.type)}</span></td>
+      <td>${getCustomerName(tx.customerId) || '—'}</td>
+      <td class="mono">${qtyLabel}</td>
+      <td class="mono">${fmt(tx.spot)}</td>
+      <td class="mono">${fmt(tx.price)}</td>
+      <td class="mono">${fmt(tx.total)}${flagBadge}</td>
+      <td>${tx.payment === 'cash' ? 'Cash' : tx.payment === 'wire' ? 'Wire' : 'Check'}</td>
+      <td class="${profitClass}">${(tx.profit >= 0 ? '+' : '-') + fmt(tx.profit)}</td>
+      <td class="row-actions">
+        <button class="row-action-btn" onclick="showReceipt('${tx.id}')" title="Receipt">🧾</button>
+        <button class="row-action-btn" onclick="openEditModal('${tx.id}')" title="Edit">✏️</button>
+        <button class="row-action-btn" onclick="openDeleteModal('${tx.id}')" title="Delete">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// Sort headers
+document.querySelectorAll('th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const field = th.dataset.sort;
+    if (sortField === field) sortDir *= -1;
+    else { sortField = field; sortDir = -1; }
+    renderTransactions();
+  });
+});
+
+// Filters
+['filterFrom', 'filterTo', 'filterMetal', 'filterForm', 'filterType', 'filterCustomer', 'filterCompliance'].forEach(id => {
+  $(id).addEventListener('change', renderTransactions);
+});
+
+$('clearFiltersBtn').addEventListener('click', () => {
+  $('filterFrom').value = '';
+  $('filterTo').value = '';
+  $('filterMetal').value = '';
+  $('filterForm').value = '';
+  $('filterType').value = '';
+  $('filterCustomer').value = '';
+  $('filterCompliance').value = '';
+  renderTransactions();
+});
+
+// Export CSV
+$('exportCsvBtn').addEventListener('click', () => {
+  const list = getFilteredTransactions();
+  if (list.length === 0) return;
+
+  const headers = ['Date', 'Metal', 'Form', 'Coin Type', 'Type', 'Customer', 'Quantity', 'Spot Price', 'Our Price', 'Total', 'Payment', 'Profit', 'Form 8300'];
+  const rows = list.map(tx => [
+    new Date(tx.date).toLocaleString(),
+    tx.metal, getFormLabel(tx.form), tx.coinType ? getCoinTypeLabel(tx.coinType) : '',
+    getTypeLabel(tx.type),
+    getCustomerName(tx.customerId),
+    tx.qty, tx.spot, tx.price, tx.total, tx.payment, tx.profit,
+    tx.form8300Flag ? (tx.form8300Reviewed ? 'Reviewed' : 'Flagged') : ''
+  ]);
+
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `stacktrack-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// Edit Modal
+window.openEditModal = function(id) {
+  const tx = transactions.find(t => t.id === id);
+  if (!tx) return;
+  $('editTxId').value = id;
+  $('editMetal').value = tx.metal;
+  $('editForm').value = tx.form;
+  $('editCoinTypeGroup').style.display = tx.form === 'coins' ? '' : 'none';
+  $('editCoinType').value = tx.coinType || '';
+  $('editType').value = tx.type;
+  $('editQty').value = tx.qty;
+  $('editSpot').value = tx.spot;
+  $('editPrice').value = tx.price;
+  $('editPayment').value = tx.payment;
+  populateEditCustomerSelect();
+  $('editCustomer').value = tx.customerId || '';
+  // Form 8300 review toggle
+  if (tx.form8300Flag) {
+    $('editForm8300Group').style.display = '';
+    $('editForm8300Reviewed').checked = !!tx.form8300Reviewed;
+  } else {
+    $('editForm8300Group').style.display = 'none';
+    $('editForm8300Reviewed').checked = false;
+  }
+  $('editModal').classList.add('open');
+};
+
+$('editForm').addEventListener('change', () => {
+  $('editCoinTypeGroup').style.display = $('editForm').value === 'coins' ? '' : 'none';
+});
+
+$('editCancelBtn').addEventListener('click', () => $('editModal').classList.remove('open'));
+
+$('editSaveBtn').addEventListener('click', () => {
+  const id = $('editTxId').value;
+  const idx = transactions.findIndex(t => t.id === id);
+  if (idx === -1) return;
+
+  const qty = parseFloat($('editQty').value) || 0;
+  const spot = parseFloat($('editSpot').value) || 0;
+  const price = parseFloat($('editPrice').value) || 0;
+  const type = $('editType').value;
+
+  const total = price * qty;
+  const profit = type === 'sell' ? (price - spot) * qty : (spot - price) * qty;
+
+  const editedForm = $('editForm').value;
+  const editedCoinType = editedForm === 'coins' ? ($('editCoinType').value || undefined) : undefined;
+
+  const editedCustomerId = $('editCustomer').value || undefined;
+
+  const editedPayment = $('editPayment').value;
+  const editedFlag = (editedPayment === 'cash' && total >= 10000);
+  const existingFlag = transactions[idx].form8300Flag;
+
+  transactions[idx] = {
+    ...transactions[idx],
+    metal: $('editMetal').value,
+    form: editedForm,
+    coinType: editedCoinType,
+    type,
+    qty, spot, price, total,
+    payment: editedPayment,
+    profit,
+    customerId: editedCustomerId,
+    form8300Flag: editedFlag || undefined,
+    form8300Reviewed: editedFlag && existingFlag ? $('editForm8300Reviewed').checked : undefined
+  };
+
+  Store.set('transactions', transactions);
+  $('editModal').classList.remove('open');
+  renderTransactions();
+  checkAlerts();
+});
+
+// Delete Modal
+window.openDeleteModal = function(id) {
+  $('deleteTxId').value = id;
+  $('deleteModal').classList.add('open');
+};
+
+$('deleteCancelBtn').addEventListener('click', () => $('deleteModal').classList.remove('open'));
+
+$('deleteConfirmBtn').addEventListener('click', () => {
+  const id = $('deleteTxId').value;
+  transactions = transactions.filter(t => t.id !== id);
+  Store.set('transactions', transactions);
+  $('deleteModal').classList.remove('open');
+  renderTransactions();
+  checkAlerts();
+});
+
+// Close modals on overlay click
+['editModal', 'deleteModal', 'receiptModal', 'addCustomerModal'].forEach(id => {
+  $(id).addEventListener('click', (e) => {
+    if (e.target === $(id)) $(id).classList.remove('open');
+  });
+});
+
+// ─── Receipt ───
+function generateReceipt(tx) {
+  const d = new Date(tx.date);
+  const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+  const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const paymentLabel = tx.payment === 'cash' ? 'Cash' : tx.payment === 'wire' ? 'Bank Wire' : 'Check';
+  const typeLabel = tx.type === 'buy' ? 'PURCHASE FROM CUSTOMER' : tx.type === 'sell' ? 'SALE TO CUSTOMER' : 'WHOLESALE';
+  const qtyLabel = tx.form === 'junk' ? '$' + fmtOz(tx.qty) + ' Face Value' : fmtOz(tx.qty) + ' troy oz';
+  const metalLabel = tx.metal === 'gold' ? 'Gold' : 'Silver';
+  const txId = tx.id.toUpperCase().slice(0, 10);
+
+  return `
+    <div class="receipt-header">
+      <div class="receipt-shop-name">${settings.shopName}</div>
+      <div class="receipt-subtitle">Bullion Transaction Receipt</div>
+      <div class="receipt-date">${dateStr} at ${timeStr}</div>
+      <div style="font-size:10px;color:#aaa;margin-top:4px;">Ref# ${txId}</div>
+    </div>
+    ${tx.customerId ? `<div style="text-align:center;margin-bottom:12px;font-size:13px;color:#444;">Customer: <strong>${getCustomerName(tx.customerId)}</strong></div>` : ''}
+    <div style="text-align:center;margin-bottom:16px;">
+      <span style="background:#f0f0f0;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px;">${typeLabel}</span>
+    </div>
+    <div class="receipt-body">
+      <div class="receipt-row">
+        <span class="receipt-label">Metal</span>
+        <span class="receipt-val">${metalLabel}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Form</span>
+        <span class="receipt-val">${getFormDisplayLabel(tx.form, tx.coinType)}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Quantity</span>
+        <span class="receipt-val">${qtyLabel}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Spot Price</span>
+        <span class="receipt-val">${fmt(tx.spot)} / oz</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">${tx.type === 'sell' ? 'Sale' : 'Buy'} Price</span>
+        <span class="receipt-val">${tx.form === 'junk' ? tx.price.toFixed(2) + 'x face' : fmt(tx.price) + ' / oz'}</span>
+      </div>
+      <div class="receipt-row">
+        <span class="receipt-label">Payment Method</span>
+        <span class="receipt-val">${paymentLabel}</span>
+      </div>
+    </div>
+    <div class="receipt-total">
+      <div class="receipt-total-label">Total Amount</div>
+      <div class="receipt-total-value">${fmt(tx.total)}${tx.form8300Flag ? '<span class="compliance-indicator"></span>' : ''}</div>
+    </div>
+    ${tx.form8300Flag ? `<div style="background:#fff3e0;border:1px solid #FFB300;border-radius:4px;padding:8px 10px;font-size:11px;color:#8d6e00;text-align:center;margin-bottom:12px;font-weight:600;">NOTICE: This cash transaction meets the $10,000 threshold for IRS Form 8300 reporting.</div>` : ''}
+    <div class="receipt-footer">
+      Thank you for your business!<br>
+      Powered by StackTrack
+    </div>
+  `;
+}
+
+function showReceipt(txId) {
+  const tx = transactions.find(t => t.id === txId);
+  if (!tx) return;
+  $('receiptContent').innerHTML = generateReceipt(tx);
+  $('receiptModal').classList.add('open');
+}
+
+window.showReceipt = showReceipt;
+
+$('receiptCloseBtn').addEventListener('click', () => $('receiptModal').classList.remove('open'));
+
+$('receiptPrintBtn').addEventListener('click', () => {
+  // Move receipt content to body level for print
+  const printWindow = window.open('', '_blank', 'width=420,height=600');
+  printWindow.document.write(`<!DOCTYPE html><html><head><title>Receipt</title>
+    <style>
+      body { font-family: 'SF Mono','Fira Code','Consolas',monospace; margin: 0; padding: 20px; color: #111; }
+      .receipt-header { text-align: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px dashed #ccc; }
+      .receipt-shop-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+      .receipt-subtitle { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+      .receipt-date { font-size: 12px; color: #666; margin-top: 8px; }
+      .receipt-body { margin-bottom: 20px; }
+      .receipt-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dotted #ddd; }
+      .receipt-row:last-child { border-bottom: none; }
+      .receipt-label { color: #666; font-size: 12px; }
+      .receipt-val { font-weight: 700; color: #111; font-size: 13px; }
+      .receipt-total { text-align: center; margin: 20px 0; padding: 16px 0; border-top: 2px dashed #ccc; border-bottom: 2px dashed #ccc; }
+      .receipt-total-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+      .receipt-total-value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+      .receipt-footer { text-align: center; font-size: 11px; color: #aaa; margin-top: 16px; }
+    </style></head><body>${$('receiptContent').innerHTML}</body></html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+});
+
+// ─── Inventory ───
+function getInventory() {
+  const inv = { gold: {}, silver: {} };
+  const forms = ['coins', 'bars', 'rounds', 'junk', 'scrap'];
+  forms.forEach(f => { inv.gold[f] = 0; inv.silver[f] = 0; });
+
+  transactions.forEach(tx => {
+    const metal = tx.metal;
+    const qty = tx.form === 'junk' ? tx.qty * 0.715 : tx.qty; // Convert junk FV to approx oz
+    if (tx.type === 'buy') {
+      inv[metal][tx.form] += qty;
+    } else {
+      inv[metal][tx.form] -= qty;
+    }
+  });
+
+  const totalGold = Object.values(inv.gold).reduce((s, v) => s + v, 0);
+  const totalSilver = Object.values(inv.silver).reduce((s, v) => s + v, 0);
+
+  return { inv, totalGold, totalSilver };
+}
+
+function updateInventoryPage() {
+  const { inv, totalGold, totalSilver } = getInventory();
+
+  $('invGoldOz').textContent = fmtOz(totalGold);
+  $('invSilverOz').textContent = fmtOz(totalSilver);
+  $('invGoldValue').textContent = fmt(totalGold * spotPrices.gold) + ' at spot';
+  $('invSilverValue').textContent = fmt(totalSilver * spotPrices.silver) + ' at spot';
+
+  // Breakdowns
+  const forms = ['coins', 'bars', 'rounds', 'junk', 'scrap'];
+  const renderBreakdown = (metalInv) => forms
+    .filter(f => metalInv[f] !== 0)
+    .map(f => `<div class="breakdown-row"><span>${getFormLabel(f)}</span><span class="breakdown-val">${fmtOz(metalInv[f])} oz</span></div>`)
+    .join('');
+
+  $('invGoldBreakdown').innerHTML = renderBreakdown(inv.gold);
+  $('invSilverBreakdown').innerHTML = renderBreakdown(inv.silver);
+}
+
+// ─── Wholesale Contacts ───
+function renderContacts() {
+  const list = $('contactsList');
+  const empty = $('contactsEmpty');
+
+  if (contacts.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  list.innerHTML = contacts.map((c, i) => `
+    <div class="contact-row">
+      <span class="contact-name">${c.name}</span>
+      <span class="contact-company">${c.company}</span>
+      <span class="contact-phone">${c.phone}</span>
+      <span style="color:var(--text-muted);font-size:12px;flex:1;">${c.notes || ''}</span>
+      <button class="row-action-btn" onclick="deleteContact(${i})" title="Remove">🗑️</button>
+    </div>
+  `).join('');
+}
+
+$('addContactBtn').addEventListener('click', () => {
+  const name = $('contactName').value.trim();
+  if (!name) return;
+
+  contacts.push({
+    name,
+    company: $('contactCompany').value.trim(),
+    phone: $('contactPhone').value.trim(),
+    notes: $('contactNotes').value.trim()
+  });
+
+  Store.set('contacts', contacts);
+  $('contactName').value = '';
+  $('contactCompany').value = '';
+  $('contactPhone').value = '';
+  $('contactNotes').value = '';
+  renderContacts();
+});
+
+window.deleteContact = function(idx) {
+  contacts.splice(idx, 1);
+  Store.set('contacts', contacts);
+  renderContacts();
+};
+
+// ─── P&L Dashboard ───
+let pnlPeriod = 'daily';
+
+document.querySelectorAll('.period-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    pnlPeriod = btn.dataset.period;
+    updatePnlPage();
+  });
+});
+
+function getPeriodStart() {
+  const now = new Date();
+  if (pnlPeriod === 'daily') {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  } else if (pnlPeriod === 'weekly') {
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(now.getFullYear(), now.getMonth(), diff).toISOString();
+  } else {
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  }
+}
+
+function updatePnlPage() {
+  const start = getPeriodStart();
+  const periodTx = transactions.filter(t => t.date >= start);
+
+  const buys = periodTx.filter(t => t.type === 'buy');
+  const sells = periodTx.filter(t => t.type === 'sell');
+  const wholesale = periodTx.filter(t => t.type === 'wholesale');
+
+  const totalBought = buys.reduce((s, t) => s + t.total, 0);
+  const totalSold = sells.reduce((s, t) => s + t.total, 0);
+  const totalWholesale = wholesale.reduce((s, t) => s + t.total, 0);
+  const totalProfit = periodTx.reduce((s, t) => s + t.profit, 0);
+
+  $('pnlBought').textContent = fmt(totalBought);
+  $('pnlBoughtCount').textContent = buys.length + ' transactions';
+  $('pnlSold').textContent = fmt(totalSold + totalWholesale);
+  $('pnlSoldCount').textContent = (sells.length + wholesale.length) + ' transactions';
+  $('pnlProfit').textContent = (totalProfit >= 0 ? '+' : '-') + fmt(totalProfit);
+
+  const revenue = totalSold + totalWholesale;
+  const marginPct = revenue > 0 ? (totalProfit / revenue * 100).toFixed(1) : 0;
+  $('pnlMarginPct').textContent = marginPct + '% margin';
+
+  const { totalGold, totalSilver } = getInventory();
+  $('pnlGold').textContent = fmtOz(totalGold) + ' oz';
+  $('pnlGoldVal').textContent = fmt(totalGold * spotPrices.gold) + ' at spot';
+  $('pnlSilver').textContent = fmtOz(totalSilver) + ' oz';
+  $('pnlSilverVal').textContent = fmt(totalSilver * spotPrices.silver) + ' at spot';
+
+  $('pnlWholesale').textContent = fmt(totalWholesale);
+  $('pnlWholesaleCount').textContent = wholesale.length + ' transactions';
+
+  // Capital position
+  // Cash/wire in = sells + wholesale (money coming in)
+  // Cash/wire out = buys (money going out)
+  const cashIn = totalSold + totalWholesale;
+  const cashOut = totalBought;
+  const invValue = (totalGold * spotPrices.gold) + (totalSilver * spotPrices.silver);
+
+  $('pnlCashIn').textContent = fmt(cashIn);
+  $('pnlCashOut').textContent = fmt(cashOut);
+  $('pnlInvValue').textContent = fmt(invValue);
+  $('pnlCapital').textContent = fmt(cashIn - cashOut + invValue);
+}
+
+// ─── Alerts ───
+function checkAlerts() {
+  const { totalGold, totalSilver } = getInventory();
+  const alerts = [];
+
+  if (totalGold > settings.threshGold) {
+    alerts.push(`Gold inventory (${fmtOz(totalGold)} oz) exceeds ${fmtOz(settings.threshGold)} oz threshold`);
+  }
+  if (totalSilver > settings.threshSilver) {
+    alerts.push(`Silver inventory (${fmtOz(totalSilver)} oz) exceeds ${fmtOz(settings.threshSilver)} oz threshold`);
+  }
+
+  // Form 8300 compliance alerts
+  const needsReviewCount = transactions.filter(t => t.form8300Flag && !t.form8300Reviewed).length;
+  if (needsReviewCount > 0) {
+    alerts.push(`${needsReviewCount} transaction(s) flagged for Form 8300 review`);
+  }
+
+  const banner = $('alertBanner');
+  if (alerts.length > 0) {
+    $('alertText').textContent = alerts.join(' | ');
+    banner.classList.add('visible');
+  } else {
+    banner.classList.remove('visible');
+  }
+}
+
+// ─── Settings ───
+function loadSettings() {
+  $('settingShopName').value = settings.shopName;
+  $('sellPremCoins').value = settings.sellPremCoins;
+  $('sellPremBars').value = settings.sellPremBars;
+  $('sellPremScrap').value = settings.sellPremScrap;
+  $('buyDiscCoins').value = settings.buyDiscCoins;
+  $('buyDiscBars').value = settings.buyDiscBars;
+  $('buyDiscScrap').value = settings.buyDiscScrap;
+  $('whDiscCoins').value = settings.whDiscCoins;
+  $('whDiscBars').value = settings.whDiscBars;
+  $('whDiscScrap').value = settings.whDiscScrap;
+  const ca = settings.coinAdjustments || {};
+  $('adjEagles').value = ca.eagles || 0;
+  $('adjMaples').value = ca.maples || 0;
+  $('adjKrugerrands').value = ca.krugerrands || 0;
+  $('adjBritannias').value = ca.britannias || 0;
+  $('adjPhilharmonics').value = ca.philharmonics || 0;
+  $('junkDivisor').value = settings.junkDivisor;
+  $('junkMultOverride').value = settings.junkMultOverride || '';
+  $('threshGold').value = settings.threshGold;
+  $('threshSilver').value = settings.threshSilver;
+  $('shopNameDisplay').textContent = settings.shopName;
+}
+
+$('saveSettingsBtn').addEventListener('click', () => {
+  settings = {
+    shopName: $('settingShopName').value.trim() || 'My Bullion Shop',
+    sellPremCoins: parseFloat($('sellPremCoins').value) || 0,
+    sellPremBars: parseFloat($('sellPremBars').value) || 0,
+    sellPremScrap: parseFloat($('sellPremScrap').value) || 0,
+    buyDiscCoins: parseFloat($('buyDiscCoins').value) || 0,
+    buyDiscBars: parseFloat($('buyDiscBars').value) || 0,
+    buyDiscScrap: parseFloat($('buyDiscScrap').value) || 0,
+    whDiscCoins: parseFloat($('whDiscCoins').value) || 0,
+    whDiscBars: parseFloat($('whDiscBars').value) || 0,
+    whDiscScrap: parseFloat($('whDiscScrap').value) || 0,
+    coinAdjustments: {
+      eagles: parseFloat($('adjEagles').value) || 0,
+      maples: parseFloat($('adjMaples').value) || 0,
+      krugerrands: parseFloat($('adjKrugerrands').value) || 0,
+      britannias: parseFloat($('adjBritannias').value) || 0,
+      philharmonics: parseFloat($('adjPhilharmonics').value) || 0
+    },
+    junkDivisor: parseFloat($('junkDivisor').value) || 1.3,
+    junkMultOverride: parseFloat($('junkMultOverride').value) || null,
+    threshGold: parseFloat($('threshGold').value) || 10,
+    threshSilver: parseFloat($('threshSilver').value) || 500
+  };
+
+  Store.set('settings', settings);
+  $('shopNameDisplay').textContent = settings.shopName;
+  recalcDeal();
+  checkAlerts();
+
+  const confirm = $('saveConfirm');
+  confirm.classList.add('show');
+  setTimeout(() => confirm.classList.remove('show'), 2000);
+});
+
+// ─── Customer Selector ───
+const customerSearchInput = $('customerSearch');
+const customerDropdown = $('customerDropdown');
+const customerClearBtn = $('customerClearBtn');
+const selectedCustomerIdInput = $('selectedCustomerId');
+
+function selectCustomer(id) {
+  const c = customers.find(c => c.id === id);
+  if (!c) return;
+  selectedCustomer = c;
+  selectedCustomerIdInput.value = c.id;
+  customerSearchInput.value = c.name;
+  customerSearchInput.classList.add('has-selection');
+  customerClearBtn.classList.add('visible');
+  customerDropdown.classList.remove('open');
+  recalcDeal();
+}
+
+function clearCustomer() {
+  selectedCustomer = null;
+  selectedCustomerIdInput.value = '';
+  customerSearchInput.value = '';
+  customerSearchInput.classList.remove('has-selection');
+  customerClearBtn.classList.remove('visible');
+  customerDropdown.classList.remove('open');
+  recalcDeal();
+}
+
+customerSearchInput.addEventListener('input', () => {
+  const query = customerSearchInput.value.trim().toLowerCase();
+  if (selectedCustomer) {
+    // User is typing over a selection, clear it
+    selectedCustomer = null;
+    selectedCustomerIdInput.value = '';
+    customerSearchInput.classList.remove('has-selection');
+    customerClearBtn.classList.remove('visible');
+  }
+
+  if (!query) {
+    customerDropdown.classList.remove('open');
+    return;
+  }
+
+  const matches = customers.filter(c =>
+    c.name.toLowerCase().includes(query) ||
+    (c.phone && c.phone.toLowerCase().includes(query))
+  );
+
+  let html = matches.map(c => {
+    const details = [c.phone, c.notes].filter(Boolean).join(' · ');
+    return `<div class="customer-dropdown-item" data-id="${c.id}">
+      <div class="customer-item-name">${c.name}</div>
+      ${details ? `<div class="customer-item-details">${details}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  html += `<div class="customer-dropdown-item add-new" data-action="add">+ Add "${customerSearchInput.value.trim()}" as new customer</div>`;
+
+  customerDropdown.innerHTML = html;
+  customerDropdown.classList.add('open');
+});
+
+customerSearchInput.addEventListener('focus', () => {
+  if (customerSearchInput.value.trim() && !selectedCustomer) {
+    customerSearchInput.dispatchEvent(new Event('input'));
+  }
+});
+
+customerDropdown.addEventListener('click', (e) => {
+  const item = e.target.closest('.customer-dropdown-item');
+  if (!item) return;
+
+  if (item.dataset.action === 'add') {
+    // Open add customer modal with name pre-filled
+    $('newCustomerName').value = customerSearchInput.value.trim();
+    $('newCustomerPhone').value = '';
+    $('newCustomerNotes').value = '';
+    $('addCustomerModal').classList.add('open');
+    customerDropdown.classList.remove('open');
+  } else if (item.dataset.id) {
+    selectCustomer(item.dataset.id);
+  }
+});
+
+customerClearBtn.addEventListener('click', clearCustomer);
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.customer-selector-wrapper')) {
+    customerDropdown.classList.remove('open');
+  }
+});
+
+// ─── Add Customer Modal ───
+$('addCustomerCancelBtn').addEventListener('click', () => {
+  $('addCustomerModal').classList.remove('open');
+});
+
+$('addCustomerSaveBtn').addEventListener('click', () => {
+  const name = $('newCustomerName').value.trim();
+  if (!name) return;
+
+  const newCustomer = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name,
+    phone: $('newCustomerPhone').value.trim(),
+    notes: $('newCustomerNotes').value.trim()
+  };
+
+  customers.push(newCustomer);
+  Store.set('customers', customers);
+  populateFilterCustomerSelect();
+
+  // Auto-select the new customer on the calculator
+  selectCustomer(newCustomer.id);
+  $('addCustomerModal').classList.remove('open');
+});
+
+// ─── Init ───
+loadSettings();
+renderContacts();
+populateFilterCustomerSelect();
+checkAlerts();
+// Spot prices and calculator update after first API fetch completes
+</script>
+</body>
+</html>
