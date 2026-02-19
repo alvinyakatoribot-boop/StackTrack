@@ -952,6 +952,157 @@ td.profit-negative { color: var(--red); font-family: var(--mono); }
 }
 
 /* ═══════════════════════════════════════ */
+/* CASH DRAWER                            */
+/* ═══════════════════════════════════════ */
+.drawer-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-bottom: 20px;
+  background: var(--bg-card);
+}
+.drawer-status-banner .status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.drawer-status-banner.open .status-dot { background: var(--green); }
+.drawer-status-banner.closed .status-dot { background: var(--red); }
+.drawer-status-banner .status-label {
+  font-weight: 700;
+  font-size: 14px;
+}
+.drawer-status-banner.open .status-label { color: var(--green); }
+.drawer-status-banner.closed .status-label { color: var(--red); }
+.drawer-status-banner .status-balance {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-left: auto;
+}
+.drawer-status-banner .status-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.drawer-action-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition);
+}
+.drawer-action-btn:hover { opacity: 0.85; }
+.drawer-action-btn.primary { background: var(--gold); color: #0a0a0a; }
+.drawer-action-btn.secondary { background: var(--btn-secondary-bg); color: var(--btn-secondary-text); }
+.drawer-action-btn.danger { background: var(--red); color: #fff; }
+
+.drawer-entries-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.drawer-entries-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.drawer-entries-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.drawer-entries-table td.mono { font-family: var(--mono); font-size: 12px; }
+
+.drawer-entry-type {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.drawer-entry-type.sale { background: rgba(76, 175, 80, 0.15); color: var(--green); }
+.drawer-entry-type.buy { background: rgba(229, 57, 53, 0.15); color: var(--red); }
+.drawer-entry-type.adjustment_in { background: rgba(33, 150, 243, 0.15); color: #2196F3; }
+.drawer-entry-type.adjustment_out { background: rgba(255, 152, 0, 0.15); color: #FF9800; }
+.drawer-entry-type.open { background: rgba(201, 168, 76, 0.15); color: var(--gold); }
+.drawer-entry-type.close { background: rgba(156, 39, 176, 0.15); color: #9C27B0; }
+
+.drawer-history-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.drawer-history-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.drawer-history-header:hover { background: var(--bg-secondary); }
+.drawer-history-header .hist-date {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.drawer-history-header .hist-balance {
+  font-family: var(--mono);
+  font-weight: 700;
+  margin-left: auto;
+}
+.drawer-history-detail {
+  display: none;
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border);
+}
+.drawer-history-item.expanded .drawer-history-detail { display: block; padding-top: 16px; }
+
+.discrepancy-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--mono);
+}
+.discrepancy-badge.over { background: rgba(76, 175, 80, 0.15); color: var(--green); }
+.discrepancy-badge.short { background: rgba(229, 57, 53, 0.15); color: var(--red); }
+.discrepancy-badge.exact { background: rgba(201, 168, 76, 0.15); color: var(--gold); }
+
+.close-drawer-expected {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+.close-drawer-discrepancy {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+/* ═══════════════════════════════════════ */
 /* SETTINGS                               */
 /* ═══════════════════════════════════════ */
 .settings-section {
@@ -1507,7 +1658,7 @@ tr.compliance-row-flagged.compliance-row-1099b {
 /* ═══════════════════════════════════════ */
 .dashboard-top-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -1777,6 +1928,7 @@ tr.compliance-row-flagged.compliance-row-1099b {
   <div class="nav-item" data-page="inventory">Inventory</div>
   <div class="nav-item" data-page="customers">Customers</div>
   <div class="nav-item" data-page="pnl">P&L</div>
+  <div class="nav-item" data-page="cashdrawer">Drawer</div>
   <div class="nav-item" data-page="settings">Settings</div>
 </nav>
 
@@ -1806,6 +1958,11 @@ tr.compliance-row-flagged.compliance-row-1099b {
       <div class="kpi-card">
         <div class="kpi-card-label">Today's Profit</div>
         <div class="kpi-card-value green" id="dashProfit">$0.00</div>
+      </div>
+      <div class="kpi-card" id="dashDrawerCard">
+        <div class="kpi-card-label">Cash Drawer</div>
+        <div class="kpi-card-value" id="dashDrawerBalance">Closed</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--text-muted);margin-top:4px;" id="dashDrawerSub"></div>
       </div>
     </div>
 
@@ -2267,6 +2424,37 @@ tr.compliance-row-flagged.compliance-row-1099b {
     </div>
   </div>
 
+  <!-- ═══════════════ CASH DRAWER PAGE ═══════════════ -->
+  <div class="page" id="page-cashdrawer">
+    <div class="drawer-status-banner closed" id="drawerStatusBanner">
+      <div class="status-dot"></div>
+      <span class="status-label" id="drawerStatusLabel">Closed</span>
+      <span class="status-balance" id="drawerStatusBalance"></span>
+      <div class="status-actions" id="drawerStatusActions"></div>
+    </div>
+    <div class="card" id="drawerCurrentCard" style="display:none;">
+      <div class="card-title">Current Session</div>
+      <table class="drawer-entries-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Balance</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody id="drawerEntriesBody"></tbody>
+      </table>
+    </div>
+    <div class="card" style="margin-top:20px;">
+      <div class="card-title">Session History</div>
+      <div id="drawerHistoryList">
+        <div class="empty-state">No completed sessions yet.</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══════════════ SETTINGS PAGE ═══════════════ -->
   <div class="page" id="page-settings">
     <div class="card">
@@ -2696,6 +2884,71 @@ tr.compliance-row-flagged.compliance-row-1099b {
   </div>
 </div>
 
+<!-- ═══════════════ OPEN DRAWER MODAL ═══════════════ -->
+<div class="modal-overlay" id="openDrawerModal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title">Open Cash Drawer</div>
+    <div class="form-group">
+      <label class="form-label">Opening Balance ($)</label>
+      <input class="form-input" type="number" id="openDrawerBalance" step="0.01" min="0" value="0" placeholder="0.00">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" id="openDrawerCancelBtn">Cancel</button>
+      <button class="modal-btn primary" id="openDrawerConfirmBtn">Open Drawer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ CLOSE DRAWER MODAL ═══════════════ -->
+<div class="modal-overlay" id="closeDrawerModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-title">Close Cash Drawer</div>
+    <div style="margin-bottom:16px;">
+      <div class="form-label">Expected Balance</div>
+      <div class="close-drawer-expected" id="closeDrawerExpected">$0.00</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Actual Cash Count ($)</label>
+      <input class="form-input" type="number" id="closeDrawerActual" step="0.01" min="0" placeholder="Count your cash...">
+    </div>
+    <div class="close-drawer-discrepancy" id="closeDrawerDiscrepancy" style="display:none;"></div>
+    <div class="form-group" style="margin-top:12px;">
+      <label class="form-label">Note (optional)</label>
+      <input class="form-input" type="text" id="closeDrawerNote" placeholder="Closing notes...">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" id="closeDrawerCancelBtn">Cancel</button>
+      <button class="modal-btn primary" id="closeDrawerConfirmBtn">Close Drawer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ CASH ADJUSTMENT MODAL ═══════════════ -->
+<div class="modal-overlay" id="cashAdjustmentModal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title">Cash Adjustment</div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <select class="form-input" id="cashAdjustmentType">
+        <option value="adjustment_in">Cash In (deposit, petty cash)</option>
+        <option value="adjustment_out">Cash Out (bank run, expense)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Amount ($)</label>
+      <input class="form-input" type="number" id="cashAdjustmentAmount" step="0.01" min="0.01" placeholder="0.00">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Note (required)</label>
+      <input class="form-input" type="text" id="cashAdjustmentNote" placeholder="Reason for adjustment...">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" id="cashAdjustmentCancelBtn">Cancel</button>
+      <button class="modal-btn primary" id="cashAdjustmentConfirmBtn">Apply</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ CUSTOMER PROFILE MODAL ═══════════════ -->
 <div class="customer-profile-overlay" id="customerProfileOverlay">
   <div class="customer-profile-modal">
@@ -2901,6 +3154,8 @@ if (settings.sellPremJunk === undefined) {
 let transactions = Store.get('transactions', []);
 let contacts = Store.get('contacts', []);
 let customers = Store.get('customers', []);
+let cashDrawer = Store.get('cashDrawer', { status: 'closed', openedAt: null, openingBalance: 0, currentBalance: 0, sessionId: null, entries: [] });
+let cashDrawerHistory = Store.get('cashDrawerHistory', []);
 let selectedCustomer = null;
 
 function getCustomerName(id) {
@@ -3028,6 +3283,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     if (item.dataset.page === 'inventory') updateInventoryPage();
     if (item.dataset.page === 'customers') renderCustomersPage();
     if (item.dataset.page === 'pnl') updatePnlPage();
+    if (item.dataset.page === 'cashdrawer') updateCashDrawerPage();
   });
 });
 
@@ -3822,6 +4078,15 @@ $('logDealBtn').addEventListener('click', () => {
   transactions.unshift(tx);
   Store.set('transactions', transactions);
 
+  // Cash drawer integration
+  if (cashDrawer.status === 'open' && tx.payment === 'cash') {
+    if (tx.type === 'sell' || tx.type === 'wholesale') {
+      addDrawerEntry('sale', tx.total, 'Sale — ' + fmt(tx.total), tx.id);
+    } else if (tx.type === 'buy') {
+      addDrawerEntry('buy', -tx.total, 'Buy — ' + fmt(tx.total), tx.id);
+    }
+  }
+
   // Flash success message
   const msg = $('dealLoggedMsg');
   msg.classList.add('show');
@@ -4107,6 +4372,11 @@ $('editSaveBtn').addEventListener('click', () => {
   const idx = transactions.findIndex(t => t.id === id);
   if (idx === -1) return;
 
+  // Capture old values for drawer sync
+  const oldPayment = transactions[idx].payment;
+  const oldTotal = transactions[idx].total;
+  const oldTxId = transactions[idx].id;
+
   const rawQtyInput = parseFloat($('editQty').value) || 0;
   const spot = parseFloat($('editSpot').value) || 0;
   const price = parseFloat($('editPrice').value) || 0;
@@ -4257,6 +4527,26 @@ $('editSaveBtn').addEventListener('click', () => {
   }
 
   Store.set('transactions', transactions);
+
+  // Cash drawer sync on edit
+  if (cashDrawer.status === 'open') {
+    const newPayment = transactions[idx].payment;
+    const newTotal = transactions[idx].total;
+    const wasCash = oldPayment === 'cash';
+    const isCash = newPayment === 'cash';
+    if (wasCash && !isCash) {
+      removeDrawerEntryByTxId(oldTxId);
+    } else if (!wasCash && isCash) {
+      const t = transactions[idx];
+      if (t.type === 'sell' || t.type === 'wholesale') addDrawerEntry('sale', newTotal, 'Sale (edited) — ' + fmt(newTotal), oldTxId);
+      else if (t.type === 'buy') addDrawerEntry('buy', -newTotal, 'Buy (edited) — ' + fmt(newTotal), oldTxId);
+    } else if (wasCash && isCash && oldTotal !== newTotal) {
+      const t = transactions[idx];
+      const newAmt = (t.type === 'sell' || t.type === 'wholesale') ? newTotal : -newTotal;
+      updateDrawerEntryForTx(oldTxId, newAmt);
+    }
+  }
+
   $('editModal').classList.remove('open');
   renderTransactions();
   checkAlerts();
@@ -4273,6 +4563,7 @@ $('deleteCancelBtn').addEventListener('click', () => $('deleteModal').classList.
 
 $('deleteConfirmBtn').addEventListener('click', () => {
   const id = $('deleteTxId').value;
+  if (cashDrawer.status === 'open') removeDrawerEntryByTxId(id);
   transactions = transactions.filter(t => t.id !== id);
   Store.set('transactions', transactions);
   $('deleteModal').classList.remove('open');
@@ -4282,7 +4573,7 @@ $('deleteConfirmBtn').addEventListener('click', () => {
 });
 
 // Close modals on overlay click
-['editModal', 'deleteModal', 'receiptModal', 'addCustomerModal'].forEach(id => {
+['editModal', 'deleteModal', 'receiptModal', 'addCustomerModal', 'openDrawerModal', 'closeDrawerModal', 'cashAdjustmentModal'].forEach(id => {
   $(id).addEventListener('click', (e) => {
     if (e.target === $(id)) $(id).classList.remove('open');
   });
@@ -4291,7 +4582,7 @@ $('deleteConfirmBtn').addEventListener('click', () => {
 // Close modals on Escape key
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    ['editModal', 'deleteModal', 'receiptModal', 'addCustomerModal', 'customerProfileOverlay'].forEach(id => {
+    ['editModal', 'deleteModal', 'receiptModal', 'addCustomerModal', 'customerProfileOverlay', 'openDrawerModal', 'closeDrawerModal', 'cashAdjustmentModal'].forEach(id => {
       $(id).classList.remove('open');
     });
   }
@@ -4724,6 +5015,269 @@ function updatePnlPage() {
   $('pnlCapital').textContent = fmt(cashIn - cashOut + invValue);
 }
 
+// ─── Cash Drawer ───
+function genDrawerId(prefix) {
+  return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function addDrawerEntry(type, amount, note, txId) {
+  const entry = {
+    id: genDrawerId('de'),
+    timestamp: new Date().toISOString(),
+    type,
+    amount,
+    runningBalance: cashDrawer.currentBalance + amount,
+    note: note || '',
+  };
+  if (txId) entry.txId = txId;
+  cashDrawer.currentBalance = entry.runningBalance;
+  cashDrawer.entries.push(entry);
+  Store.set('cashDrawer', cashDrawer);
+}
+
+function openDrawer(openingBalance) {
+  if (openingBalance < 0) { alert('Opening balance cannot be negative.'); return false; }
+  if (cashDrawer.status === 'open') { alert('Drawer is already open.'); return false; }
+  cashDrawer = {
+    status: 'open',
+    openedAt: new Date().toISOString(),
+    openingBalance,
+    currentBalance: openingBalance,
+    sessionId: genDrawerId('ds'),
+    entries: []
+  };
+  cashDrawer.entries.push({
+    id: genDrawerId('de'),
+    timestamp: cashDrawer.openedAt,
+    type: 'open',
+    amount: openingBalance,
+    runningBalance: openingBalance,
+    note: 'Drawer opened'
+  });
+  Store.set('cashDrawer', cashDrawer);
+  return true;
+}
+
+function closeDrawer(actualBalance, note) {
+  const expectedBalance = cashDrawer.currentBalance;
+  const discrepancy = actualBalance - expectedBalance;
+
+  addDrawerEntry('close', 0, note || 'Drawer closed');
+
+  const session = {
+    sessionId: cashDrawer.sessionId,
+    openedAt: cashDrawer.openedAt,
+    closedAt: new Date().toISOString(),
+    openingBalance: cashDrawer.openingBalance,
+    expectedBalance,
+    actualBalance,
+    discrepancy,
+    entries: [...cashDrawer.entries]
+  };
+  cashDrawerHistory.unshift(session);
+  Store.set('cashDrawerHistory', cashDrawerHistory);
+
+  cashDrawer = { status: 'closed', openedAt: null, openingBalance: 0, currentBalance: 0, sessionId: null, entries: [] };
+  Store.set('cashDrawer', cashDrawer);
+}
+
+function removeDrawerEntryByTxId(txId) {
+  const idx = cashDrawer.entries.findIndex(e => e.txId === txId);
+  if (idx === -1) return;
+  cashDrawer.entries.splice(idx, 1);
+  // Recalculate running balances
+  let bal = 0;
+  cashDrawer.entries.forEach(e => {
+    bal += e.amount;
+    e.runningBalance = bal;
+  });
+  cashDrawer.currentBalance = bal;
+  Store.set('cashDrawer', cashDrawer);
+}
+
+function updateDrawerEntryForTx(txId, newAmount) {
+  const entry = cashDrawer.entries.find(e => e.txId === txId);
+  if (!entry) return;
+  entry.amount = newAmount;
+  // Recalculate running balances from that point
+  let bal = 0;
+  cashDrawer.entries.forEach(e => {
+    bal += e.amount;
+    e.runningBalance = bal;
+  });
+  cashDrawer.currentBalance = bal;
+  Store.set('cashDrawer', cashDrawer);
+}
+
+function updateCashDrawerPage() {
+  const banner = $('drawerStatusBanner');
+  const actions = $('drawerStatusActions');
+
+  if (cashDrawer.status === 'open') {
+    banner.className = 'drawer-status-banner open';
+    $('drawerStatusLabel').textContent = 'Open';
+    $('drawerStatusBalance').textContent = fmt(cashDrawer.currentBalance);
+    actions.innerHTML = '<button class="drawer-action-btn secondary" onclick="openCashAdjustmentModal()">Adjustment</button>' +
+      '<button class="drawer-action-btn danger" onclick="openCloseDrawerModal()">Close Drawer</button>';
+    $('drawerCurrentCard').style.display = '';
+    renderDrawerEntries();
+  } else {
+    banner.className = 'drawer-status-banner closed';
+    $('drawerStatusLabel').textContent = 'Closed';
+    $('drawerStatusBalance').textContent = '';
+    actions.innerHTML = '<button class="drawer-action-btn primary" onclick="openOpenDrawerModal()">Open Drawer</button>';
+    $('drawerCurrentCard').style.display = 'none';
+  }
+  renderDrawerHistory();
+}
+
+function renderDrawerEntries() {
+  const tbody = $('drawerEntriesBody');
+  if (cashDrawer.entries.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">No entries yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = cashDrawer.entries.map(e => {
+    const d = new Date(e.timestamp);
+    const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const amtStr = e.amount >= 0 ? '+' + fmt(e.amount) : '-' + fmt(e.amount);
+    const amtColor = e.amount >= 0 ? 'var(--green)' : 'var(--red)';
+    return `<tr>
+      <td class="mono">${time}</td>
+      <td><span class="drawer-entry-type ${e.type}">${e.type.replace('_', ' ')}</span></td>
+      <td class="mono" style="color:${amtColor}">${amtStr}</td>
+      <td class="mono">${fmt(e.runningBalance)}</td>
+      <td>${esc(e.note)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderDrawerHistory() {
+  const list = $('drawerHistoryList');
+  if (cashDrawerHistory.length === 0) {
+    list.innerHTML = '<div class="empty-state">No completed sessions yet.</div>';
+    return;
+  }
+  list.innerHTML = cashDrawerHistory.map((s, i) => {
+    const opened = new Date(s.openedAt);
+    const closed = new Date(s.closedAt);
+    const dateStr = opened.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const openTime = opened.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const closeTime = closed.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    let discClass = 'exact', discLabel = 'Exact';
+    if (s.discrepancy > 0) { discClass = 'over'; discLabel = '+' + fmt(s.discrepancy) + ' over'; }
+    else if (s.discrepancy < 0) { discClass = 'short'; discLabel = '-' + fmt(s.discrepancy) + ' short'; }
+
+    const entriesHtml = s.entries.map(e => {
+      const t = new Date(e.timestamp);
+      const time = t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const amtStr = e.amount >= 0 ? '+' + fmt(e.amount) : '-' + fmt(e.amount);
+      return `<tr>
+        <td class="mono">${time}</td>
+        <td><span class="drawer-entry-type ${e.type}">${e.type.replace('_', ' ')}</span></td>
+        <td class="mono">${amtStr}</td>
+        <td class="mono">${fmt(e.runningBalance)}</td>
+        <td>${esc(e.note)}</td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="drawer-history-item" data-hist-idx="${i}">
+      <div class="drawer-history-header" onclick="this.parentElement.classList.toggle('expanded')">
+        <span class="hist-date">${dateStr} ${openTime} – ${closeTime}</span>
+        <span class="discrepancy-badge ${discClass}">${discLabel}</span>
+        <span class="hist-balance">${fmt(s.actualBalance)}</span>
+      </div>
+      <div class="drawer-history-detail">
+        <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px;">
+          <div><span style="color:var(--text-muted);font-size:12px;">Opening</span><br><strong>${fmt(s.openingBalance)}</strong></div>
+          <div><span style="color:var(--text-muted);font-size:12px;">Expected</span><br><strong>${fmt(s.expectedBalance)}</strong></div>
+          <div><span style="color:var(--text-muted);font-size:12px;">Actual</span><br><strong>${fmt(s.actualBalance)}</strong></div>
+        </div>
+        <table class="drawer-entries-table">
+          <thead><tr><th>Time</th><th>Type</th><th>Amount</th><th>Balance</th><th>Note</th></tr></thead>
+          <tbody>${entriesHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Cash Drawer Modal Handlers
+window.openOpenDrawerModal = function() {
+  $('openDrawerBalance').value = '0';
+  $('openDrawerModal').classList.add('open');
+};
+
+window.openCloseDrawerModal = function() {
+  $('closeDrawerExpected').textContent = fmt(cashDrawer.currentBalance);
+  $('closeDrawerActual').value = '';
+  $('closeDrawerNote').value = '';
+  $('closeDrawerDiscrepancy').style.display = 'none';
+  $('closeDrawerModal').classList.add('open');
+};
+
+window.openCashAdjustmentModal = function() {
+  $('cashAdjustmentType').value = 'adjustment_in';
+  $('cashAdjustmentAmount').value = '';
+  $('cashAdjustmentNote').value = '';
+  $('cashAdjustmentModal').classList.add('open');
+};
+
+$('openDrawerCancelBtn').addEventListener('click', () => $('openDrawerModal').classList.remove('open'));
+$('openDrawerConfirmBtn').addEventListener('click', () => {
+  const bal = parseFloat($('openDrawerBalance').value) || 0;
+  if (bal < 0) { alert('Opening balance cannot be negative.'); return; }
+  if (openDrawer(bal)) {
+    $('openDrawerModal').classList.remove('open');
+    updateCashDrawerPage();
+    updateDashboard();
+  }
+});
+
+$('closeDrawerCancelBtn').addEventListener('click', () => $('closeDrawerModal').classList.remove('open'));
+$('closeDrawerConfirmBtn').addEventListener('click', () => {
+  const actual = parseFloat($('closeDrawerActual').value);
+  if (isNaN(actual) || actual < 0) { alert('Please enter a valid cash count.'); return; }
+  const note = $('closeDrawerNote').value.trim();
+  closeDrawer(actual, note);
+  $('closeDrawerModal').classList.remove('open');
+  updateCashDrawerPage();
+  updateDashboard();
+});
+
+$('closeDrawerActual').addEventListener('input', () => {
+  const actual = parseFloat($('closeDrawerActual').value);
+  const discEl = $('closeDrawerDiscrepancy');
+  if (isNaN(actual)) { discEl.style.display = 'none'; return; }
+  const expected = cashDrawer.currentBalance;
+  const disc = actual - expected;
+  discEl.style.display = '';
+  if (disc > 0) {
+    discEl.textContent = '+' + fmt(disc) + ' over';
+    discEl.style.color = 'var(--green)';
+  } else if (disc < 0) {
+    discEl.textContent = '-' + fmt(disc) + ' short';
+    discEl.style.color = 'var(--red)';
+  } else {
+    discEl.textContent = 'Exact match';
+    discEl.style.color = 'var(--gold)';
+  }
+});
+
+$('cashAdjustmentCancelBtn').addEventListener('click', () => $('cashAdjustmentModal').classList.remove('open'));
+$('cashAdjustmentConfirmBtn').addEventListener('click', () => {
+  const type = $('cashAdjustmentType').value;
+  const amount = parseFloat($('cashAdjustmentAmount').value) || 0;
+  const note = $('cashAdjustmentNote').value.trim();
+  if (amount <= 0) { alert('Amount must be greater than zero.'); return; }
+  if (!note) { alert('A note is required for adjustments.'); return; }
+  const signedAmt = type === 'adjustment_in' ? amount : -amount;
+  addDrawerEntry(type, signedAmt, note);
+  $('cashAdjustmentModal').classList.remove('open');
+  updateCashDrawerPage();
+  updateDashboard();
+});
+
 // ─── Alerts ───
 function checkAlerts() {
   const { inv, totalGold, totalSilver } = getInventory();
@@ -5018,7 +5572,9 @@ $('exportDataBtn').addEventListener('click', () => {
     settings,
     transactions,
     customers,
-    contacts
+    contacts,
+    cashDrawer,
+    cashDrawerHistory
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -5052,6 +5608,8 @@ $('importFileInput').addEventListener('change', (e) => {
       transactions = data.transactions; Store.set('transactions', transactions);
       customers = data.customers; Store.set('customers', customers);
       contacts = data.contacts || []; Store.set('contacts', contacts);
+      if (data.cashDrawer) { cashDrawer = data.cashDrawer; Store.set('cashDrawer', cashDrawer); }
+      if (data.cashDrawerHistory) { cashDrawerHistory = data.cashDrawerHistory; Store.set('cashDrawerHistory', cashDrawerHistory); }
       loadSettings();
       renderTransactions();
       renderContacts();
@@ -5311,6 +5869,30 @@ function updateDashboard() {
   $('dashUnfiled8300').className = 'action-count ' + (unfiled8300 > 0 ? 'red' : 'green');
   $('dashUnfiled1099B').className = 'action-count ' + (unfiled1099B > 0 ? 'orange' : 'green');
   $('dashNeedW9').className = 'action-count ' + (needW9 > 0 ? 'orange' : 'green');
+
+  // Cash Drawer KPI
+  const drawerCard = $('dashDrawerCard');
+  const drawerBal = $('dashDrawerBalance');
+  const drawerSub = $('dashDrawerSub');
+  if (cashDrawer.status === 'open') {
+    drawerBal.textContent = fmt(cashDrawer.currentBalance);
+    drawerBal.className = 'kpi-card-value green';
+    drawerSub.textContent = 'Drawer open';
+    drawerCard.style.borderColor = '';
+  } else {
+    drawerBal.textContent = 'Closed';
+    drawerBal.className = 'kpi-card-value';
+    drawerBal.style.color = 'var(--text-muted)';
+    // Red border if last session had discrepancy
+    if (cashDrawerHistory.length > 0 && cashDrawerHistory[0].discrepancy !== 0) {
+      drawerCard.style.borderColor = 'var(--red)';
+      drawerSub.textContent = (cashDrawerHistory[0].discrepancy > 0 ? '+' : '-') + fmt(cashDrawerHistory[0].discrepancy) + ' last session';
+      drawerSub.style.color = 'var(--red)';
+    } else {
+      drawerCard.style.borderColor = '';
+      drawerSub.textContent = '';
+    }
+  }
 
   // Recent transactions (last 10)
   const recent = [...transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);

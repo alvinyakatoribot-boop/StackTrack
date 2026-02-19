@@ -1077,3 +1077,332 @@ test.describe('Sales Tax', () => {
     expect(content).toContain('"105"');
   });
 });
+
+// ─── Cash Drawer Management ─────────────────────────────────────────
+
+test.describe('Cash Drawer Management', () => {
+  const DRAWER_DATA = {
+    settings: TEST_DATA.settings,
+    transactions: [],
+    customers: TEST_DATA.customers,
+    contacts: [],
+    cashDrawer: { status: 'closed', openedAt: null, openingBalance: 0, currentBalance: 0, sessionId: null, entries: [] },
+    cashDrawerHistory: [],
+  };
+
+  async function seedDrawerAndReload(page, overrides = {}) {
+    const data = { ...DRAWER_DATA, ...overrides };
+    await page.evaluate((d) => {
+      localStorage.setItem('st_settings', JSON.stringify(d.settings));
+      localStorage.setItem('st_transactions', JSON.stringify(d.transactions));
+      localStorage.setItem('st_customers', JSON.stringify(d.customers));
+      localStorage.setItem('st_contacts', JSON.stringify(d.contacts));
+      localStorage.setItem('st_cashDrawer', JSON.stringify(d.cashDrawer));
+      localStorage.setItem('st_cashDrawerHistory', JSON.stringify(d.cashDrawerHistory));
+    }, data);
+    await page.reload();
+    await page.waitForFunction(() => {
+      const el = document.getElementById('outSpot');
+      return el && !el.textContent.includes('$0.00');
+    }, { timeout: 5000 });
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await mockSpotPrices(page);
+    await seedDrawerAndReload(page);
+  });
+
+  test('opens drawer with correct balance', async ({ page }) => {
+    await page.click('[data-page="cashdrawer"]');
+    await page.click('button:has-text("Open Drawer")');
+    await page.fill('#openDrawerBalance', '500');
+    await page.click('#openDrawerConfirmBtn');
+
+    const drawer = await page.evaluate(() => JSON.parse(localStorage.getItem('st_cashDrawer')));
+    expect(drawer.status).toBe('open');
+    expect(drawer.openingBalance).toBe(500);
+    expect(drawer.currentBalance).toBe(500);
+    expect(drawer.entries.length).toBe(1);
+    expect(drawer.entries[0].type).toBe('open');
+  });
+
+  test('rejects negative opening balance', async ({ page }) => {
+    await page.click('[data-page="cashdrawer"]');
+    await page.click('button:has-text("Open Drawer")');
+    await page.fill('#openDrawerBalance', '-100');
+
+    page.on('dialog', async dialog => {
+      expect(dialog.message()).toContain('negative');
+      await dialog.dismiss();
+    });
+    await page.click('#openDrawerConfirmBtn');
+
+    const drawer = await page.evaluate(() => JSON.parse(localStorage.getItem('st_cashDrawer')));
+    expect(drawer.status).toBe('closed');
+  });
+
+  test('cannot open when already open', async ({ page }) => {
+    const openDrawer = {
+      status: 'open', openedAt: new Date().toISOString(), openingBalance: 200, currentBalance: 200,
+      sessionId: 'ds-test', entries: [{ id: 'de-1', timestamp: new Date().toISOString(), type: 'open', amount: 200, runningBalance: 200, note: 'Drawer opened' }]
+    };
+    await seedDrawerAndReload(page, { cashDrawer: openDrawer });
+    await page.click('[data-page="cashdrawer"]');
+    // Open Drawer button should not be present in status actions when drawer is already open
+    await expect(page.locator('#drawerStatusActions button:has-text("Open Drawer")')).toHaveCount(0);
+  });
+
+  test('closes drawer with discrepancy', async ({ page }) => {
+    const openDrawer = {
+      status: 'open', openedAt: new Date().toISOString(), openingBalance: 500, currentBalance: 500,
+      sessionId: 'ds-test', entries: [{ id: 'de-1', timestamp: new Date().toISOString(), type: 'open', amount: 500, runningBalance: 500, note: 'Drawer opened' }]
+    };
+    await seedDrawerAndReload(page, { cashDrawer: openDrawer });
+    await page.click('[data-page="cashdrawer"]');
+    await page.click('button:has-text("Close Drawer")');
+    await page.fill('#closeDrawerActual', '480');
+    await page.click('#closeDrawerConfirmBtn');
+
+    const history = await page.evaluate(() => JSON.parse(localStorage.getItem('st_cashDrawerHistory')));
+    expect(history.length).toBe(1);
+    expect(history[0].expectedBalance).toBe(500);
+    expect(history[0].actualBalance).toBe(480);
+    expect(history[0].discrepancy).toBe(-20);
+  });
+
+  test('close modal shows live discrepancy', async ({ page }) => {
+    const openDrawer = {
+      status: 'open', openedAt: new Date().toISOString(), openingBalance: 300, currentBalance: 300,
+      sessionId: 'ds-test', entries: [{ id: 'de-1', timestamp: new Date().toISOString(), type: 'open', amount: 300, runningBalance: 300, note: 'Drawer opened' }]
+    };
+    await seedDrawerAndReload(page, { cashDrawer: openDrawer });
+    await page.click('[data-page="cashdrawer"]');
+    await page.click('button:has-text("Close Drawer")');
+    await page.fill('#closeDrawerActual', '320');
+
+    const discText = await page.textContent('#closeDrawerDiscrepancy');
+    expect(discText).toContain('over');
+  });
+
+  test('cash in adjustment increases balance', async ({ page }) => {
+    const openDrawer = {
+      status: 'open', openedAt: new Date().toISOString(), openingBalance: 100, currentBalance: 100,
+      sessionId: 'ds-test', entries: [{ id: 'de-1', timestamp: new Date().toISOString(), type: 'open', amount: 100, runningBalance: 100, note: 'Drawer opened' }]
+    };
+    await seedDrawerAndReload(page, { cashDrawer: openDrawer });
+    await page.click('[data-page="cashdrawer"]');
+    await page.click('button:has-text("Adjustment")');
+    await page.selectOption('#cashAdjustmentType', 'adjustment_in');
+    await page.fill('#cashAdjustmentAmount', '50');
+    await page.fill('#cashAdjustmentNote', 'Petty cash');
+    await page.click('#cashAdjustmentConfirmBtn');
+
+    const drawer = await page.evaluate(() => JSON.parse(localStorage.getItem('st_cashDrawer')));
+    expect(drawer.currentBalance).toBe(150);
+    const lastEntry = drawer.entries[drawer.entries.length - 1];
+    expect(lastEntry.type).toBe('adjustment_in');
+    expect(lastEntry.amount).toBe(50);
+  });
+
+  test('cash out adjustment decreases balance', async ({ page }) => {
+    const openDrawer = {
+      status: 'open', openedAt: new Date().toISOString(), openingBalance: 200, currentBalance: 200,
+      sessionId: 'ds-test', entries: [{ id: 'de-1', timestamp: new Date().toISOString(), type: 'open', amount: 200, runningBalance: 200, note: 'Drawer opened' }]
+    };
+    await seedDrawerAndReload(page, { cashDrawer: openDrawer });
+    await page.click('[data-page="cashdrawer"]');
+    await page.click('button:has-text("Adjustment")');
+    await page.selectOption('#cashAdjustmentType', 'adjustment_out');
+    await page.fill('#cashAdjustmentAmount', '75');
+    await page.fill('#cashAdjustmentNote', 'Bank deposit');
+    await page.click('#cashAdjustmentConfirmBtn');
+
+    const drawer = await page.evaluate(() => JSON.parse(localStorage.getItem('st_cashDrawer')));
+    expect(drawer.currentBalance).toBe(125);
+    const lastEntry = drawer.entries[drawer.entries.length - 1];
+    expect(lastEntry.type).toBe('adjustment_out');
+    expect(lastEntry.amount).toBe(-75);
+  });
+
+  test('rejects adjustment with no note', async ({ page }) => {
+    const openDrawer = {
+      status: 'open', openedAt: new Date().toISOString(), openingBalance: 100, currentBalance: 100,
+      sessionId: 'ds-test', entries: [{ id: 'de-1', timestamp: new Date().toISOString(), type: 'open', amount: 100, runningBalance: 100, note: 'Drawer opened' }]
+    };
+    await seedDrawerAndReload(page, { cashDrawer: openDrawer });
+    await page.click('[data-page="cashdrawer"]');
+    await page.click('button:has-text("Adjustment")');
+    await page.fill('#cashAdjustmentAmount', '20');
+    // Leave note empty
+
+    page.on('dialog', async dialog => {
+      expect(dialog.message()).toContain('note');
+      await dialog.dismiss();
+    });
+    await page.click('#cashAdjustmentConfirmBtn');
+
+    const drawer = await page.evaluate(() => JSON.parse(localStorage.getItem('st_cashDrawer')));
+    expect(drawer.currentBalance).toBe(100);
+  });
+
+  test('cash sale auto-adds sale entry', async ({ page }) => {
+    // Open drawer first
+    await page.click('[data-page="cashdrawer"]');
+    await page.click('button:has-text("Open Drawer")');
+    await page.fill('#openDrawerBalance', '100');
+    await page.click('#openDrawerConfirmBtn');
+
+    // Log a cash sell deal
+    await page.click('[data-page="calculator"]');
+    await page.click('.segment-btn[data-value="sell"]');
+    await page.selectOption('#calcMetal', 'gold');
+    await page.selectOption('#calcForm', 'coins');
+    await page.fill('#calcQty', '1');
+    await page.click('#logDealBtn');
+
+    const drawer = await page.evaluate(() => JSON.parse(localStorage.getItem('st_cashDrawer')));
+    const saleEntry = drawer.entries.find(e => e.type === 'sale');
+    expect(saleEntry).toBeTruthy();
+    expect(saleEntry.amount).toBeGreaterThan(0);
+    expect(saleEntry.txId).toBeTruthy();
+  });
+
+  test('cash buy auto-adds buy entry', async ({ page }) => {
+    await page.click('[data-page="cashdrawer"]');
+    await page.click('button:has-text("Open Drawer")');
+    await page.fill('#openDrawerBalance', '5000');
+    await page.click('#openDrawerConfirmBtn');
+
+    await page.click('[data-page="calculator"]');
+    await page.click('.segment-btn[data-value="buy"]');
+    await page.selectOption('#calcMetal', 'gold');
+    await page.selectOption('#calcForm', 'coins');
+    await page.fill('#calcQty', '1');
+    await page.click('#logDealBtn');
+
+    const drawer = await page.evaluate(() => JSON.parse(localStorage.getItem('st_cashDrawer')));
+    const buyEntry = drawer.entries.find(e => e.type === 'buy');
+    expect(buyEntry).toBeTruthy();
+    expect(buyEntry.amount).toBeLessThan(0);
+    expect(buyEntry.txId).toBeTruthy();
+  });
+
+  test('non-cash tx does not add entry', async ({ page }) => {
+    await page.click('[data-page="cashdrawer"]');
+    await page.click('button:has-text("Open Drawer")');
+    await page.fill('#openDrawerBalance', '100');
+    await page.click('#openDrawerConfirmBtn');
+
+    await page.click('[data-page="calculator"]');
+    await page.selectOption('#calcPayment', 'wire');
+    await page.click('.segment-btn[data-value="sell"]');
+    await page.selectOption('#calcMetal', 'gold');
+    await page.selectOption('#calcForm', 'coins');
+    await page.fill('#calcQty', '1');
+    await page.click('#logDealBtn');
+
+    const drawer = await page.evaluate(() => JSON.parse(localStorage.getItem('st_cashDrawer')));
+    // Should only have the open entry
+    expect(drawer.entries.filter(e => e.type === 'sale').length).toBe(0);
+  });
+
+  test('closed drawer does not track', async ({ page }) => {
+    // Drawer is closed by default
+    await page.click('[data-page="calculator"]');
+    await page.click('.segment-btn[data-value="sell"]');
+    await page.selectOption('#calcMetal', 'gold');
+    await page.selectOption('#calcForm', 'coins');
+    await page.fill('#calcQty', '1');
+    await page.click('#logDealBtn');
+
+    const drawer = await page.evaluate(() => JSON.parse(localStorage.getItem('st_cashDrawer')));
+    expect(drawer.entries.length).toBe(0);
+  });
+
+  test('deleting cash tx removes drawer entry', async ({ page }) => {
+    // Open drawer and log a cash sale
+    await page.click('[data-page="cashdrawer"]');
+    await page.click('button:has-text("Open Drawer")');
+    await page.fill('#openDrawerBalance', '100');
+    await page.click('#openDrawerConfirmBtn');
+
+    await page.click('[data-page="calculator"]');
+    await page.click('.segment-btn[data-value="sell"]');
+    await page.selectOption('#calcMetal', 'gold');
+    await page.selectOption('#calcForm', 'coins');
+    await page.fill('#calcQty', '1');
+    await page.click('#logDealBtn');
+
+    // Verify entry was created
+    let drawer = await page.evaluate(() => JSON.parse(localStorage.getItem('st_cashDrawer')));
+    expect(drawer.entries.find(e => e.type === 'sale')).toBeTruthy();
+
+    // Close receipt modal if open
+    const receiptModal = page.locator('#receiptModal');
+    if (await receiptModal.evaluate(el => el.classList.contains('open')).catch(() => false)) {
+      await page.click('#receiptCloseBtn');
+    }
+
+    // Delete the transaction
+    await page.click('[data-page="transactions"]');
+    page.on('dialog', dialog => dialog.accept());
+    await page.locator('#txBody tr').first().locator('button', { hasText: '🗑' }).click();
+    await page.click('#deleteConfirmBtn');
+
+    drawer = await page.evaluate(() => JSON.parse(localStorage.getItem('st_cashDrawer')));
+    expect(drawer.entries.find(e => e.type === 'sale')).toBeFalsy();
+  });
+
+  test('dashboard shows balance when open', async ({ page }) => {
+    const openDrawer = {
+      status: 'open', openedAt: new Date().toISOString(), openingBalance: 750, currentBalance: 750,
+      sessionId: 'ds-test', entries: [{ id: 'de-1', timestamp: new Date().toISOString(), type: 'open', amount: 750, runningBalance: 750, note: 'Drawer opened' }]
+    };
+    await seedDrawerAndReload(page, { cashDrawer: openDrawer });
+    await page.click('[data-page="dashboard"]');
+
+    const text = await page.textContent('#dashDrawerBalance');
+    expect(text).toContain('750');
+  });
+
+  test('dashboard shows Closed when closed', async ({ page }) => {
+    await page.click('[data-page="dashboard"]');
+    const text = await page.textContent('#dashDrawerBalance');
+    expect(text).toBe('Closed');
+  });
+
+  test('session history renders', async ({ page }) => {
+    const historyData = [{
+      sessionId: 'ds-hist-1', openedAt: '2025-01-15T09:00:00Z', closedAt: '2025-01-15T17:00:00Z',
+      openingBalance: 500, expectedBalance: 680, actualBalance: 680, discrepancy: 0,
+      entries: [
+        { id: 'de-h1', timestamp: '2025-01-15T09:00:00Z', type: 'open', amount: 500, runningBalance: 500, note: 'Opened' },
+        { id: 'de-h2', timestamp: '2025-01-15T17:00:00Z', type: 'close', amount: 0, runningBalance: 680, note: 'Closed' }
+      ]
+    }];
+    await seedDrawerAndReload(page, { cashDrawerHistory: historyData });
+    await page.click('[data-page="cashdrawer"]');
+
+    const items = page.locator('.drawer-history-item');
+    await expect(items).toHaveCount(1);
+  });
+
+  test('history item expands on click', async ({ page }) => {
+    const historyData = [{
+      sessionId: 'ds-hist-1', openedAt: '2025-01-15T09:00:00Z', closedAt: '2025-01-15T17:00:00Z',
+      openingBalance: 500, expectedBalance: 680, actualBalance: 680, discrepancy: 0,
+      entries: [
+        { id: 'de-h1', timestamp: '2025-01-15T09:00:00Z', type: 'open', amount: 500, runningBalance: 500, note: 'Opened' },
+        { id: 'de-h2', timestamp: '2025-01-15T17:00:00Z', type: 'close', amount: 0, runningBalance: 680, note: 'Closed' }
+      ]
+    }];
+    await seedDrawerAndReload(page, { cashDrawerHistory: historyData });
+    await page.click('[data-page="cashdrawer"]');
+
+    const item = page.locator('.drawer-history-item').first();
+    await expect(item).not.toHaveClass(/expanded/);
+    await item.locator('.drawer-history-header').click();
+    await expect(item).toHaveClass(/expanded/);
+  });
+});
