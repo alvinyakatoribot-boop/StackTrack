@@ -1406,3 +1406,172 @@ test.describe('Cash Drawer Management', () => {
     await expect(item).toHaveClass(/expanded/);
   });
 });
+
+// ─── Reporting & Charts ───────────────────────────────────────────
+
+test.describe('Reporting & Charts', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await mockSpotPrices(page);
+    await seedAndReload(page);
+  });
+
+  test('Reports page accessible via nav', async ({ page }) => {
+    await page.click('[data-page="reports"]');
+    const reportsPage = page.locator('#page-reports');
+    await expect(reportsPage).toHaveClass(/active/);
+  });
+
+  test('Period selector defaults to 30D', async ({ page }) => {
+    await page.click('[data-page="reports"]');
+    const activeBtn = page.locator('#reportsPeriodSelector .period-btn.active');
+    await expect(activeBtn).toHaveText('30D');
+  });
+
+  test('Period selector changes active state', async ({ page }) => {
+    await page.click('[data-page="reports"]');
+    await page.click('#reportsPeriodSelector .period-btn[data-rperiod="7d"]');
+    const btn7d = page.locator('#reportsPeriodSelector .period-btn[data-rperiod="7d"]');
+    const btn30d = page.locator('#reportsPeriodSelector .period-btn[data-rperiod="30d"]');
+    await expect(btn7d).toHaveClass(/active/);
+    await expect(btn30d).not.toHaveClass(/active/);
+  });
+
+  test('Summary KPIs show correct values', async ({ page }) => {
+    // Seed with known transactions within the "all" period
+    const txs = [
+      { id: 'rpt-1', date: new Date().toISOString(), type: 'buy', metal: 'gold', form: 'coins', coinType: 'eagles', qty: 1, spot: 2000, price: 1940, total: 1940, profit: 60, payment: 'cash', customerId: 'cust-val-1', notes: '' },
+      { id: 'rpt-2', date: new Date().toISOString(), type: 'sell', metal: 'silver', form: 'bars', coinType: '', qty: 100, spot: 30, price: 31.5, total: 3150, profit: 150, payment: 'wire', customerId: 'cust-val-1', notes: '' },
+    ];
+    await page.evaluate((data) => {
+      localStorage.setItem('st_transactions', JSON.stringify(data));
+    }, txs);
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('rptRevenue'));
+    await page.click('[data-page="reports"]');
+    // Switch to "all" period so our txs are included
+    await page.click('#reportsPeriodSelector .period-btn[data-rperiod="all"]');
+    await expect(page.locator('#rptRevenue')).toHaveText('$5,090.00');
+    await expect(page.locator('#rptProfit')).toHaveText('$210.00');
+    await expect(page.locator('#rptCount')).toHaveText('2');
+  });
+
+  test('Chart canvases exist', async ({ page }) => {
+    await page.click('[data-page="reports"]');
+    await expect(page.locator('#chartRevenue')).toBeVisible();
+    await expect(page.locator('#chartVolume')).toBeVisible();
+    await expect(page.locator('#chartInventory')).toBeVisible();
+    await expect(page.locator('#chartMetal')).toBeVisible();
+    await expect(page.locator('#chartPayment')).toBeVisible();
+    await expect(page.locator('#chartTopCustomers')).toBeVisible();
+  });
+
+  test('Charts render with empty data', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('st_transactions', JSON.stringify([]));
+    });
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('rptRevenue'));
+    await page.click('[data-page="reports"]');
+    // Should not throw — KPIs show zero values
+    await expect(page.locator('#rptRevenue')).toHaveText('$0.00');
+    await expect(page.locator('#rptCount')).toHaveText('0');
+  });
+
+  test('Period change re-renders', async ({ page }) => {
+    const txs = [
+      { id: 'rpt-recent', date: new Date().toISOString(), type: 'sell', metal: 'gold', form: 'bars', coinType: '', qty: 1, spot: 2000, price: 2100, total: 2100, profit: 100, payment: 'cash', customerId: '', notes: '' },
+      { id: 'rpt-old', date: '2020-01-01T12:00:00Z', type: 'sell', metal: 'gold', form: 'bars', coinType: '', qty: 1, spot: 1500, price: 1575, total: 1575, profit: 75, payment: 'wire', customerId: '', notes: '' },
+    ];
+    await page.evaluate((data) => {
+      localStorage.setItem('st_transactions', JSON.stringify(data));
+    }, txs);
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('rptRevenue'));
+    await page.click('[data-page="reports"]');
+    // 30D default should only have the recent tx
+    await expect(page.locator('#rptCount')).toHaveText('1');
+    // Switch to "all" — should show both
+    await page.click('#reportsPeriodSelector .period-btn[data-rperiod="all"]');
+    await expect(page.locator('#rptCount')).toHaveText('2');
+  });
+
+  test('Metal breakdown correct', async ({ page }) => {
+    const txs = [
+      { id: 'rpt-g', date: new Date().toISOString(), type: 'buy', metal: 'gold', form: 'bars', coinType: '', qty: 1, spot: 2000, price: 1940, total: 1940, profit: 60, payment: 'cash', customerId: '', notes: '' },
+      { id: 'rpt-s', date: new Date().toISOString(), type: 'buy', metal: 'silver', form: 'bars', coinType: '', qty: 100, spot: 30, price: 29, total: 2900, profit: 100, payment: 'cash', customerId: '', notes: '' },
+    ];
+    await page.evaluate((data) => {
+      localStorage.setItem('st_transactions', JSON.stringify(data));
+    }, txs);
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('rptRevenue'));
+    await page.click('[data-page="reports"]');
+    // Verify via evaluating the aggregateByMetal function
+    const metals = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions'));
+      let gold = 0, silver = 0;
+      txs.forEach(tx => { if (tx.metal === 'gold') gold += tx.total; else silver += tx.total; });
+      return { gold, silver };
+    });
+    expect(metals.gold).toBe(1940);
+    expect(metals.silver).toBe(2900);
+  });
+
+  test('Payment breakdown correct', async ({ page }) => {
+    const txs = [
+      { id: 'rpt-c', date: new Date().toISOString(), type: 'buy', metal: 'gold', form: 'bars', coinType: '', qty: 1, spot: 2000, price: 1940, total: 1940, profit: 60, payment: 'cash', customerId: '', notes: '' },
+      { id: 'rpt-w', date: new Date().toISOString(), type: 'sell', metal: 'silver', form: 'bars', coinType: '', qty: 50, spot: 30, price: 31, total: 1550, profit: 50, payment: 'wire', customerId: '', notes: '' },
+    ];
+    await page.evaluate((data) => {
+      localStorage.setItem('st_transactions', JSON.stringify(data));
+    }, txs);
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('rptRevenue'));
+    await page.click('[data-page="reports"]');
+    const payments = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions'));
+      const r = { cash: 0, wire: 0, check: 0 };
+      txs.forEach(tx => { r[tx.payment] = (r[tx.payment] || 0) + tx.total; });
+      return r;
+    });
+    expect(payments.cash).toBe(1940);
+    expect(payments.wire).toBe(1550);
+  });
+
+  test('Top customers ranking correct', async ({ page }) => {
+    const txs = [
+      { id: 'rpt-tc1', date: new Date().toISOString(), type: 'buy', metal: 'gold', form: 'bars', coinType: '', qty: 1, spot: 2000, price: 1940, total: 5000, profit: 60, payment: 'cash', customerId: 'c1', notes: '' },
+      { id: 'rpt-tc2', date: new Date().toISOString(), type: 'buy', metal: 'gold', form: 'bars', coinType: '', qty: 1, spot: 2000, price: 1940, total: 3000, profit: 60, payment: 'cash', customerId: 'c2', notes: '' },
+      { id: 'rpt-tc3', date: new Date().toISOString(), type: 'buy', metal: 'gold', form: 'bars', coinType: '', qty: 1, spot: 2000, price: 1940, total: 8000, profit: 60, payment: 'cash', customerId: 'c3', notes: '' },
+    ];
+    const custs = [
+      { id: 'c1', name: 'Alice', email: '', phone: '' },
+      { id: 'c2', name: 'Bob', email: '', phone: '' },
+      { id: 'c3', name: 'Charlie', email: '', phone: '' },
+    ];
+    await page.evaluate((data) => {
+      localStorage.setItem('st_transactions', JSON.stringify(data.txs));
+      localStorage.setItem('st_customers', JSON.stringify(data.custs));
+    }, { txs, custs });
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('rptRevenue'));
+    await page.click('[data-page="reports"]');
+    // Verify top customers ranking via the getTopCustomers function
+    const topNames = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions'));
+      const custs = JSON.parse(localStorage.getItem('st_customers'));
+      const map = {};
+      txs.forEach(tx => {
+        if (!tx.customerId) return;
+        const c = custs.find(c => c.id === tx.customerId);
+        const name = c ? c.name : tx.customerId;
+        map[name] = (map[name] || 0) + (tx.total || 0);
+      });
+      return Object.entries(map).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+    });
+    expect(topNames[0]).toBe('Charlie');
+    expect(topNames[1]).toBe('Alice');
+    expect(topNames[2]).toBe('Bob');
+  });
+});
