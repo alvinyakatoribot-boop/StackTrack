@@ -1721,6 +1721,8 @@ test.describe('Trade / Swap Transactions', () => {
     await page.fill('#tradeOutQty', '50');
 
     await page.click('#logDealBtn');
+    // Confirmation modal now opens — confirm the trade
+    await page.click('#tradeConfirmSubmit');
 
     const tx = await page.evaluate(() => {
       const txs = JSON.parse(localStorage.getItem('st_transactions'));
@@ -1902,6 +1904,8 @@ test.describe('Trade / Swap Transactions', () => {
     // calcPayment is in the hidden form-grid, set it programmatically
     await page.evaluate(() => { document.getElementById('calcPayment').value = 'cash'; });
     await page.click('#logDealBtn');
+    // Confirmation modal now opens — confirm the trade
+    await page.click('#tradeConfirmSubmit');
 
     const tx = await page.evaluate(() => {
       const txs = JSON.parse(localStorage.getItem('st_transactions'));
@@ -1923,5 +1927,352 @@ test.describe('Trade / Swap Transactions', () => {
     // Fill both
     await page.fill('#tradeOutQty', '50');
     await expect(page.locator('#logDealBtn')).not.toBeDisabled();
+  });
+});
+
+// ─── Trade Enhancements ────────────────────────────────────────────
+
+test.describe('Trade Enhancements', () => {
+  const TRADE_SETTINGS = {
+    shopName: 'Trade Enhancement Shop',
+    sellPremCoins: 7, sellPremBars: 5, sellPremScrap: 3,
+    buyDiscCoins: 3, buyDiscBars: 5, buyDiscScrap: 8,
+    whDiscCoins: 1, whDiscBars: 2, whDiscScrap: 3,
+    coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0, pre33: 0 },
+    junkMultiplier: 0.715, junkMultOverride: null,
+    sellPremJunk: 7, buyDiscJunk: 3, whDiscJunk: 1,
+    tradeInDiscCoins: 2, tradeInDiscBars: 2, tradeInDiscScrap: 4,
+    tradeOutPremCoins: 4, tradeOutPremBars: 3, tradeOutPremScrap: 2,
+    tradeInDiscJunk: 2, tradeOutPremJunk: 4,
+    threshGold: 10, threshSilver: 500,
+    reorderPoints: {},
+    premiumModes: {},
+    taxEnabled: false,
+    taxState: '',
+    taxRateOverride: null
+  };
+
+  async function seedTradeEnhData(page) {
+    await page.evaluate((s) => {
+      localStorage.setItem('st_settings', JSON.stringify(s));
+      localStorage.setItem('st_transactions', JSON.stringify([]));
+      localStorage.setItem('st_customers', JSON.stringify([]));
+      localStorage.setItem('st_contacts', JSON.stringify([]));
+    }, TRADE_SETTINGS);
+    await page.reload();
+    await page.waitForFunction(() => {
+      const el = document.getElementById('outSpot');
+      return el && !el.textContent.includes('$0.00');
+    }, { timeout: 5000 });
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await mockSpotPrices(page, { gold: 2500, silver: 32 });
+    await seedTradeEnhData(page);
+    await page.click('[data-page="calculator"]');
+    await page.click('.segment-btn[data-value="trade"]');
+  });
+
+  // 1. Quick-swap flips metal/form/qty between sides
+  test('Quick-swap flips metal/form/qty between sides', async ({ page }) => {
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '2');
+
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'coins');
+    await page.fill('#tradeOutQty', '50');
+
+    await page.click('#tradeSwapBtn');
+
+    expect(await page.inputValue('#tradeInMetal')).toBe('silver');
+    expect(await page.inputValue('#tradeInForm')).toBe('coins');
+    expect(await page.inputValue('#tradeInQty')).toBe('50');
+    expect(await page.inputValue('#tradeOutMetal')).toBe('gold');
+    expect(await page.inputValue('#tradeOutForm')).toBe('bars');
+    expect(await page.inputValue('#tradeOutQty')).toBe('2');
+  });
+
+  // 2. Quick-swap recalculates settlement
+  test('Quick-swap recalculates settlement', async ({ page }) => {
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '1');
+
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '10');
+
+    const settleBefore = await page.textContent('#tradeSettlementAmount');
+    await page.click('#tradeSwapBtn');
+    const settleAfter = await page.textContent('#tradeSettlementAmount');
+
+    // After swap, settlement should be different (metals swapped)
+    expect(settleBefore).not.toBe(settleAfter);
+  });
+
+  // 3. Spread lock freezes spot in calculation
+  test('Spread lock freezes spot in calculation', async ({ page }) => {
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '1');
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '10');
+
+    // Lock spread
+    await page.click('#spreadLockBtn');
+
+    // Verify lock state
+    const isLocked = await page.evaluate(() => spreadLock.active);
+    expect(isLocked).toBe(true);
+
+    // Values should be same as before lock (spots frozen)
+    const inValue = await page.textContent('#tradeInValue');
+
+    // Change spot prices via JS — should NOT affect locked prices
+    await page.evaluate(() => { spotPrices.gold = 3000; spotPrices.silver = 40; });
+    // Trigger recalc
+    await page.fill('#tradeInQty', '1');
+    const inValueAfter = await page.textContent('#tradeInValue');
+    expect(inValue).toBe(inValueAfter);
+  });
+
+  // 4. Spread lock shows countdown timer
+  test('Spread lock shows countdown timer', async ({ page }) => {
+    await page.selectOption('#spreadLockDuration', '120');
+    await page.click('#spreadLockBtn');
+
+    const timerText = await page.textContent('#spreadLockTimer');
+    // Timer should show something like "2:00" or "1:59"
+    expect(timerText).toMatch(/\d+:\d{2}/);
+
+    // Button should have locked class
+    await expect(page.locator('#spreadLockBtn')).toHaveClass(/locked/);
+  });
+
+  // 5. Spread lock releases on trade log
+  test('Spread lock releases on trade log', async ({ page }) => {
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '1');
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '10');
+
+    // Lock and then log trade
+    await page.click('#spreadLockBtn');
+    expect(await page.evaluate(() => spreadLock.active)).toBe(true);
+
+    // Click log deal — opens confirmation modal
+    await page.click('#logDealBtn');
+    await expect(page.locator('#tradeConfirmModal')).toHaveClass(/open/);
+    // Confirm
+    await page.click('#tradeConfirmSubmit');
+
+    // Spread lock should be released
+    expect(await page.evaluate(() => spreadLock.active)).toBe(false);
+  });
+
+  // 6. Multi-line: add 2 items to inbound, combined value correct
+  test('Multi-line: add 2 items to inbound, combined value correct', async ({ page }) => {
+    // Add first in-line: gold bars, 1 oz
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '1');
+    await page.click('#tradeInAddLine');
+
+    // Add second in-line: silver bars, 10 oz
+    await page.selectOption('#tradeInMetal', 'silver');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '10');
+    await page.click('#tradeInAddLine');
+
+    // Check in-lines rendered
+    const lineCount = await page.locator('#tradeInLinesList .trade-line-item').count();
+    expect(lineCount).toBe(2);
+
+    // Combined in value should be gold_in + silver_in
+    // gold: 2500 * (1 - 0.02) = 2450, silver: 32 * (1 - 0.02) * 10 = 313.60
+    const inValue = await page.textContent('#tradeInValue');
+    const inVal = parseFloat(inValue.replace(/[$,]/g, ''));
+    expect(inVal).toBeCloseTo(2450 + 313.60, 0);
+  });
+
+  // 7. Multi-line: add items to both sides, settlement correct
+  test('Multi-line: add items to both sides, settlement correct', async ({ page }) => {
+    // In: gold bars 1oz
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '1');
+    await page.click('#tradeInAddLine');
+
+    // Out: silver bars 10oz
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '10');
+    await page.click('#tradeOutAddLine');
+
+    const settleText = await page.textContent('#tradeSettlementAmount');
+    const settleVal = parseFloat(settleText.replace(/[$,\-]/g, ''));
+    // out: 32 * 1.03 * 10 = 329.60, in: 2500 * 0.98 = 2450
+    // settlement = 329.60 - 2450 = -2120.40 (absolute value shown)
+    expect(settleVal).toBeCloseTo(2120.40, 0);
+  });
+
+  // 8. Multi-line: remove a line updates totals
+  test('Multi-line: remove a line updates totals', async ({ page }) => {
+    // Add 2 in-lines
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '1');
+    await page.click('#tradeInAddLine');
+
+    await page.selectOption('#tradeInMetal', 'silver');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '10');
+    await page.click('#tradeInAddLine');
+
+    const valueBefore = await page.textContent('#tradeInValue');
+
+    // Remove first line
+    await page.locator('#tradeInLinesList .trade-line-remove').first().click();
+
+    const lineCount = await page.locator('#tradeInLinesList .trade-line-item').count();
+    expect(lineCount).toBe(1);
+
+    const valueAfter = await page.textContent('#tradeInValue');
+    expect(valueBefore).not.toBe(valueAfter);
+  });
+
+  // 9. Multi-line: inventory tracks all lines
+  test('Multi-line: inventory tracks all lines', async ({ page }) => {
+    // Seed a multi-line trade transaction
+    const tradeTx = {
+      id: 'tx-ml-inv',
+      date: new Date().toISOString(),
+      type: 'trade',
+      tradeInLines: [
+        { metal: 'gold', form: 'bars', coinType: null, qty: 2, spot: 2500, price: 2450, total: 4900, profit: 100 },
+        { metal: 'silver', form: 'bars', coinType: null, qty: 50, spot: 32, price: 31.36, total: 1568, profit: 32 }
+      ],
+      tradeOutLines: [
+        { metal: 'gold', form: 'coins', coinType: 'eagles', qty: 1, spot: 2500, price: 2600, total: 2600, profit: 100 }
+      ],
+      tradeIn: { metal: 'gold', form: 'bars', coinType: null, qty: 2, spot: 2500, price: 2450, total: 4900 },
+      tradeOut: { metal: 'gold', form: 'coins', coinType: 'eagles', qty: 1, spot: 2500, price: 2600, total: 2600 },
+      metal: 'gold',
+      total: 3868,
+      subtotal: 3868,
+      settlement: -3868,
+      profit: 232,
+      payment: 'cash',
+      lines: [],
+      taxRate: 0,
+      taxAmount: 0
+    };
+
+    await page.evaluate((tx) => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions') || '[]');
+      txs.push(tx);
+      localStorage.setItem('st_transactions', JSON.stringify(txs));
+    }, tradeTx);
+    await page.reload();
+    await page.waitForFunction(() => {
+      const el = document.getElementById('outSpot');
+      return el && !el.textContent.includes('$0.00');
+    }, { timeout: 5000 });
+
+    const inv = await page.evaluate(() => getInventory());
+    // In: gold bars +2, silver bars +50
+    // Out: gold coins -1
+    expect(inv.inv.gold.bars).toBeCloseTo(2, 3);
+    expect(inv.inv.silver.bars).toBeCloseTo(50, 3);
+    expect(inv.inv.gold.coins).toBeCloseTo(-1, 3);
+  });
+
+  // 10. Confirmation modal opens on Log Deal click
+  test('Confirmation modal opens on Log Deal click', async ({ page }) => {
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '1');
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '10');
+
+    await page.click('#logDealBtn');
+    await expect(page.locator('#tradeConfirmModal')).toHaveClass(/open/);
+  });
+
+  // 11. Confirmation modal shows trade preview content
+  test('Confirmation modal shows trade preview content', async ({ page }) => {
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '1');
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '10');
+
+    await page.click('#logDealBtn');
+    const bodyHtml = await page.innerHTML('#tradeConfirmBody');
+    expect(bodyHtml).toContain('Customer Gives Us');
+    expect(bodyHtml).toContain('We Give Customer');
+    expect(bodyHtml).toContain('Gold');
+    expect(bodyHtml).toContain('Silver');
+  });
+
+  // 12. Confirmation modal has signature canvases
+  test('Confirmation modal has signature canvases', async ({ page }) => {
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '1');
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '10');
+
+    await page.click('#logDealBtn');
+    await expect(page.locator('#dealerSigCanvas')).toBeVisible();
+    await expect(page.locator('#customerSigCanvas')).toBeVisible();
+  });
+
+  // 13. Confirm button logs trade transaction
+  test('Confirm button logs trade transaction', async ({ page }) => {
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '1');
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '10');
+
+    await page.click('#logDealBtn');
+    await page.click('#tradeConfirmSubmit');
+
+    const txs = await page.evaluate(() => JSON.parse(localStorage.getItem('st_transactions')));
+    const tradeTx = txs.find(t => t.type === 'trade');
+    expect(tradeTx).toBeTruthy();
+    expect(tradeTx.tradeInLines).toBeTruthy();
+    expect(tradeTx.tradeInLines.length).toBe(1);
+    expect(tradeTx.tradeOutLines).toBeTruthy();
+    expect(tradeTx.tradeOutLines.length).toBe(1);
+    expect(tradeTx.settlement).toBeDefined();
+  });
+
+  // 14. Cancel button closes without logging
+  test('Cancel button closes without logging', async ({ page }) => {
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '1');
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '10');
+
+    await page.click('#logDealBtn');
+    await expect(page.locator('#tradeConfirmModal')).toHaveClass(/open/);
+    await page.click('#tradeConfirmCancel');
+    await expect(page.locator('#tradeConfirmModal')).not.toHaveClass(/open/);
+
+    const txs = await page.evaluate(() => JSON.parse(localStorage.getItem('st_transactions')));
+    expect(txs.length).toBe(0);
   });
 });
