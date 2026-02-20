@@ -1780,6 +1780,8 @@ tr.compliance-row-flagged.compliance-row-1099b {
   .dashboard-mid-grid { grid-template-columns: 1fr; }
   .cp-stats-grid { grid-template-columns: 1fr 1fr; }
   .cp-fields { grid-template-columns: 1fr; }
+  .reports-grid { grid-template-columns: 1fr; }
+  .reports-summary-grid { grid-template-columns: 1fr 1fr; }
 }
 
 /* ═══════════════════════════════════════ */
@@ -1885,7 +1887,66 @@ tr.compliance-row-flagged.compliance-row-1099b {
   color: #888;
   margin-left: 4px;
 }
+/* ═══════════════════════════════════════ */
+/* REPORTS PAGE                           */
+/* ═══════════════════════════════════════ */
+.reports-period-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.reports-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.reports-summary-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+
+.reports-summary-item .label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.reports-summary-item .value {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--text-primary);
+}
+
+.reports-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.reports-chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.reports-chart-card .chart-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -1929,6 +1990,7 @@ tr.compliance-row-flagged.compliance-row-1099b {
   <div class="nav-item" data-page="customers">Customers</div>
   <div class="nav-item" data-page="pnl">P&L</div>
   <div class="nav-item" data-page="cashdrawer">Drawer</div>
+  <div class="nav-item" data-page="reports">Reports</div>
   <div class="nav-item" data-page="settings">Settings</div>
 </nav>
 
@@ -2451,6 +2513,63 @@ tr.compliance-row-flagged.compliance-row-1099b {
       <div class="card-title">Session History</div>
       <div id="drawerHistoryList">
         <div class="empty-state">No completed sessions yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ REPORTS PAGE ═══════════════ -->
+  <div class="page" id="page-reports">
+    <div class="reports-period-selector" id="reportsPeriodSelector">
+      <button class="period-btn" data-rperiod="7d">7D</button>
+      <button class="period-btn active" data-rperiod="30d">30D</button>
+      <button class="period-btn" data-rperiod="90d">90D</button>
+      <button class="period-btn" data-rperiod="ytd">YTD</button>
+      <button class="period-btn" data-rperiod="all">All</button>
+    </div>
+
+    <div class="reports-summary-grid">
+      <div class="reports-summary-item">
+        <div class="label">Total Revenue</div>
+        <div class="value" id="rptRevenue">$0.00</div>
+      </div>
+      <div class="reports-summary-item">
+        <div class="label">Total Profit</div>
+        <div class="value" id="rptProfit">$0.00</div>
+      </div>
+      <div class="reports-summary-item">
+        <div class="label">Avg Margin %</div>
+        <div class="value" id="rptMargin">0.0%</div>
+      </div>
+      <div class="reports-summary-item">
+        <div class="label">Total Transactions</div>
+        <div class="value" id="rptCount">0</div>
+      </div>
+    </div>
+
+    <div class="reports-grid">
+      <div class="reports-chart-card">
+        <div class="chart-title">Revenue & Profit Over Time</div>
+        <canvas id="chartRevenue"></canvas>
+      </div>
+      <div class="reports-chart-card">
+        <div class="chart-title">Buy vs Sell Volume</div>
+        <canvas id="chartVolume"></canvas>
+      </div>
+      <div class="reports-chart-card">
+        <div class="chart-title">Inventory Value Trend</div>
+        <canvas id="chartInventory"></canvas>
+      </div>
+      <div class="reports-chart-card">
+        <div class="chart-title">Metal Breakdown</div>
+        <canvas id="chartMetal"></canvas>
+      </div>
+      <div class="reports-chart-card">
+        <div class="chart-title">Payment Method Breakdown</div>
+        <canvas id="chartPayment"></canvas>
+      </div>
+      <div class="reports-chart-card">
+        <div class="chart-title">Top Customers</div>
+        <canvas id="chartTopCustomers"></canvas>
       </div>
     </div>
   </div>
@@ -3265,6 +3384,8 @@ function setTheme(theme) {
 document.getElementById('themeToggle').addEventListener('click', () => {
   const current = document.documentElement.getAttribute('data-theme');
   setTheme(current === 'dark' ? 'light' : 'dark');
+  const activePage = document.querySelector('.nav-item.active');
+  if (activePage && activePage.dataset.page === 'reports') updateReportsPage();
 });
 
 // Load saved theme
@@ -3284,6 +3405,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     if (item.dataset.page === 'customers') renderCustomersPage();
     if (item.dataset.page === 'pnl') updatePnlPage();
     if (item.dataset.page === 'cashdrawer') updateCashDrawerPage();
+    if (item.dataset.page === 'reports') updateReportsPage();
   });
 });
 
@@ -5276,6 +5398,290 @@ $('cashAdjustmentConfirmBtn').addEventListener('click', () => {
   $('cashAdjustmentModal').classList.remove('open');
   updateCashDrawerPage();
   updateDashboard();
+});
+
+// ─── Reports & Charts ───
+let reportsPeriod = '30d';
+let reportCharts = {};
+
+function getReportsDateRange(period) {
+  const now = new Date();
+  const end = new Date(now);
+  let start;
+  switch (period) {
+    case '7d': start = new Date(now); start.setDate(start.getDate() - 7); break;
+    case '30d': start = new Date(now); start.setDate(start.getDate() - 30); break;
+    case '90d': start = new Date(now); start.setDate(start.getDate() - 90); break;
+    case 'ytd': start = new Date(now.getFullYear(), 0, 1); break;
+    case 'all': start = new Date(0); break;
+    default: start = new Date(now); start.setDate(start.getDate() - 30);
+  }
+  return { start, end };
+}
+
+function getReportTransactions() {
+  const { start, end } = getReportsDateRange(reportsPeriod);
+  return transactions.filter(tx => {
+    const d = new Date(tx.date);
+    return d >= start && d <= end;
+  });
+}
+
+function aggregateByTimeBucket(txs, period) {
+  if (txs.length === 0) return [];
+  const buckets = {};
+  const sorted = [...txs].sort((a, b) => new Date(a.date) - new Date(b.date));
+  sorted.forEach(tx => {
+    const d = new Date(tx.date);
+    let key;
+    if (period === '7d' || period === '30d') {
+      key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } else if (period === '90d') {
+      const weekStart = new Date(d);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      key = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } else {
+      key = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    }
+    if (!buckets[key]) buckets[key] = { label: key, revenue: 0, cost: 0, profit: 0, count: 0 };
+    buckets[key].revenue += tx.total || 0;
+    buckets[key].profit += tx.profit || 0;
+    buckets[key].cost += (tx.total || 0) - (tx.profit || 0);
+    buckets[key].count += 1;
+  });
+  return Object.values(buckets);
+}
+
+function aggregateByMetal(txs) {
+  const result = { gold: 0, silver: 0 };
+  txs.forEach(tx => {
+    const lines = getTxLines(tx);
+    lines.forEach(line => {
+      if (line.metal === 'gold') result.gold += line.total || 0;
+      else if (line.metal === 'silver') result.silver += line.total || 0;
+    });
+  });
+  return result;
+}
+
+function aggregateByPayment(txs) {
+  const result = { cash: 0, wire: 0, check: 0 };
+  txs.forEach(tx => {
+    const p = tx.payment || 'cash';
+    result[p] = (result[p] || 0) + (tx.total || 0);
+  });
+  return result;
+}
+
+function getTopCustomers(txs, limit = 10) {
+  const map = {};
+  txs.forEach(tx => {
+    if (!tx.customerId) return;
+    const name = getCustomerName(tx.customerId) || tx.customerId;
+    if (!map[name]) map[name] = 0;
+    map[name] += tx.total || 0;
+  });
+  return Object.entries(map)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([name, volume]) => ({ name, volume }));
+}
+
+function computeInventoryValueOverTime(txs, period) {
+  if (txs.length === 0) return [];
+  const sorted = [...txs].sort((a, b) => new Date(a.date) - new Date(b.date));
+  let goldOz = 0, silverOz = 0;
+  const points = [];
+  sorted.forEach(tx => {
+    const lines = getTxLines(tx);
+    lines.forEach(line => {
+      const qty = line.qty || 0;
+      const spot = line.spot || 0;
+      if (tx.type === 'buy') {
+        if (line.metal === 'gold') goldOz += qty;
+        else if (line.metal === 'silver') silverOz += qty;
+      } else {
+        if (line.metal === 'gold') goldOz -= qty;
+        else if (line.metal === 'silver') silverOz -= qty;
+      }
+      const d = new Date(tx.date);
+      let label;
+      if (period === '7d' || period === '30d') {
+        label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      } else if (period === '90d') {
+        const weekStart = new Date(d);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        label = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      } else {
+        label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      }
+      const goldSpot = line.metal === 'gold' ? spot : (points.length > 0 ? points[points.length - 1].goldSpot : 0);
+      const silverSpot = line.metal === 'silver' ? spot : (points.length > 0 ? points[points.length - 1].silverSpot : 0);
+      points.push({ label, goldValue: goldOz * goldSpot, silverValue: silverOz * silverSpot, goldSpot, silverSpot });
+    });
+  });
+  // Deduplicate to last value per label
+  const deduped = {};
+  points.forEach(p => { deduped[p.label] = p; });
+  return Object.values(deduped);
+}
+
+function getChartColors() {
+  const s = getComputedStyle(document.documentElement);
+  return {
+    gold: s.getPropertyValue('--gold').trim(),
+    silver: s.getPropertyValue('--silver').trim(),
+    green: s.getPropertyValue('--green').trim(),
+    red: s.getPropertyValue('--red').trim(),
+    text: s.getPropertyValue('--text-primary').trim(),
+    muted: s.getPropertyValue('--text-muted').trim(),
+    border: s.getPropertyValue('--border').trim(),
+  };
+}
+
+function destroyReportCharts() {
+  Object.values(reportCharts).forEach(c => { if (c) c.destroy(); });
+  reportCharts = {};
+}
+
+function buildRevenueChart(data) {
+  const c = getChartColors();
+  const ctx = $('chartRevenue').getContext('2d');
+  reportCharts.revenue = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.label),
+      datasets: [
+        { label: 'Revenue', data: data.map(d => d.revenue), backgroundColor: c.gold + '88', borderColor: c.gold, borderWidth: 1, order: 2 },
+        { label: 'Profit', data: data.map(d => d.profit), type: 'line', borderColor: c.green, backgroundColor: c.green + '22', fill: true, tension: 0.3, pointRadius: 3, order: 1 },
+      ],
+    },
+    options: { responsive: true, plugins: { legend: { labels: { color: c.text } } }, scales: { x: { ticks: { color: c.muted } }, y: { ticks: { color: c.muted } } } },
+  });
+}
+
+function buildVolumeChart(txs) {
+  const c = getChartColors();
+  const buckets = {};
+  txs.forEach(tx => {
+    const d = new Date(tx.date);
+    let key;
+    if (reportsPeriod === '7d' || reportsPeriod === '30d') {
+      key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } else if (reportsPeriod === '90d') {
+      const ws = new Date(d); ws.setDate(ws.getDate() - ws.getDay());
+      key = ws.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } else {
+      key = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    }
+    if (!buckets[key]) buckets[key] = { label: key, buys: 0, sells: 0 };
+    if (tx.type === 'buy') buckets[key].buys += tx.total || 0;
+    else buckets[key].sells += tx.total || 0;
+  });
+  const data = Object.values(buckets);
+  const ctx = $('chartVolume').getContext('2d');
+  reportCharts.volume = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.label),
+      datasets: [
+        { label: 'Buys', data: data.map(d => d.buys), backgroundColor: c.green + 'aa' },
+        { label: 'Sells', data: data.map(d => d.sells), backgroundColor: c.gold + 'aa' },
+      ],
+    },
+    options: { responsive: true, plugins: { legend: { labels: { color: c.text } } }, scales: { x: { ticks: { color: c.muted } }, y: { ticks: { color: c.muted } } } },
+  });
+}
+
+function buildInventoryChart(txs) {
+  const c = getChartColors();
+  const data = computeInventoryValueOverTime(txs, reportsPeriod);
+  const ctx = $('chartInventory').getContext('2d');
+  reportCharts.inventory = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.label),
+      datasets: [
+        { label: 'Gold Value', data: data.map(d => d.goldValue), borderColor: c.gold, backgroundColor: c.gold + '22', fill: false, tension: 0.3, pointRadius: 3 },
+        { label: 'Silver Value', data: data.map(d => d.silverValue), borderColor: c.silver, backgroundColor: c.silver + '22', fill: false, tension: 0.3, pointRadius: 3 },
+      ],
+    },
+    options: { responsive: true, plugins: { legend: { labels: { color: c.text } } }, scales: { x: { ticks: { color: c.muted } }, y: { ticks: { color: c.muted } } } },
+  });
+}
+
+function buildMetalChart(txs) {
+  const c = getChartColors();
+  const data = aggregateByMetal(txs);
+  const ctx = $('chartMetal').getContext('2d');
+  reportCharts.metal = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Gold', 'Silver'],
+      datasets: [{ data: [data.gold, data.silver], backgroundColor: [c.gold, c.silver], borderWidth: 0 }],
+    },
+    options: { responsive: true, plugins: { legend: { labels: { color: c.text } } } },
+  });
+}
+
+function buildPaymentChart(txs) {
+  const c = getChartColors();
+  const data = aggregateByPayment(txs);
+  const ctx = $('chartPayment').getContext('2d');
+  reportCharts.payment = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Cash', 'Wire', 'Check'],
+      datasets: [{ data: [data.cash, data.wire, data.check], backgroundColor: [c.green, c.gold, c.silver], borderWidth: 0 }],
+    },
+    options: { responsive: true, plugins: { legend: { labels: { color: c.text } } } },
+  });
+}
+
+function buildTopCustomersChart(txs) {
+  const c = getChartColors();
+  const data = getTopCustomers(txs);
+  const ctx = $('chartTopCustomers').getContext('2d');
+  reportCharts.topCustomers = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.name),
+      datasets: [{ label: 'Volume ($)', data: data.map(d => d.volume), backgroundColor: c.gold + 'aa', borderColor: c.gold, borderWidth: 1 }],
+    },
+    options: { indexAxis: 'y', responsive: true, plugins: { legend: { labels: { color: c.text } } }, scales: { x: { ticks: { color: c.muted } }, y: { ticks: { color: c.muted } } } },
+  });
+}
+
+function updateReportsPage() {
+  const txs = getReportTransactions();
+  // KPIs
+  const totalRevenue = txs.reduce((s, tx) => s + (tx.total || 0), 0);
+  const totalProfit = txs.reduce((s, tx) => s + (tx.profit || 0), 0);
+  const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+  $('rptRevenue').textContent = fmt(totalRevenue);
+  $('rptProfit').textContent = fmt(totalProfit);
+  $('rptMargin').textContent = avgMargin.toFixed(1) + '%';
+  $('rptCount').textContent = txs.length;
+
+  // Charts
+  destroyReportCharts();
+  const timeBuckets = aggregateByTimeBucket(txs, reportsPeriod);
+  buildRevenueChart(timeBuckets);
+  buildVolumeChart(txs);
+  buildInventoryChart(txs);
+  buildMetalChart(txs);
+  buildPaymentChart(txs);
+  buildTopCustomersChart(txs);
+}
+
+// Reports period selector
+document.querySelectorAll('#reportsPeriodSelector .period-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#reportsPeriodSelector .period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    reportsPeriod = btn.dataset.rperiod;
+    updateReportsPage();
+  });
 });
 
 // ─── Alerts ───
