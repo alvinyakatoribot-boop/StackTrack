@@ -1575,3 +1575,353 @@ test.describe('Reporting & Charts', () => {
     expect(topNames[2]).toBe('Bob');
   });
 });
+
+// ─── Trade / Swap Transactions ────────────────────────────────────────
+
+test.describe('Trade / Swap Transactions', () => {
+  const TRADE_SETTINGS = {
+    shopName: 'Trade Test Shop',
+    sellPremCoins: 7, sellPremBars: 5, sellPremScrap: 3,
+    buyDiscCoins: 3, buyDiscBars: 5, buyDiscScrap: 8,
+    whDiscCoins: 1, whDiscBars: 2, whDiscScrap: 3,
+    coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0, pre33: 0 },
+    junkMultiplier: 0.715, junkMultOverride: null,
+    sellPremJunk: 7, buyDiscJunk: 3, whDiscJunk: 1,
+    tradeInDiscCoins: 2, tradeInDiscBars: 2, tradeInDiscScrap: 4,
+    tradeOutPremCoins: 4, tradeOutPremBars: 3, tradeOutPremScrap: 2,
+    tradeInDiscJunk: 2, tradeOutPremJunk: 4,
+    threshGold: 10, threshSilver: 500,
+    reorderPoints: {},
+    premiumModes: {},
+    taxEnabled: false,
+    taxState: '',
+    taxRateOverride: null
+  };
+
+  async function seedTradeData(page, overrides = {}) {
+    const data = {
+      settings: { ...TRADE_SETTINGS, ...(overrides.settings || {}) },
+      transactions: overrides.transactions || [],
+      customers: overrides.customers || [{ id: 'cust-trade-1', name: 'Trade Customer', email: 'trade@example.com', phone: '' }],
+      contacts: [],
+    };
+    await page.evaluate((d) => {
+      localStorage.setItem('st_settings', JSON.stringify(d.settings));
+      localStorage.setItem('st_transactions', JSON.stringify(d.transactions));
+      localStorage.setItem('st_customers', JSON.stringify(d.customers));
+      localStorage.setItem('st_contacts', JSON.stringify(d.contacts));
+    }, data);
+    await page.reload();
+    await page.waitForFunction(() => {
+      const el = document.getElementById('outSpot');
+      return el && !el.textContent.includes('$0.00');
+    }, { timeout: 5000 });
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await mockSpotPrices(page, { gold: 2500, silver: 32 });
+    await seedTradeData(page);
+  });
+
+  test('Trade button appears in calculator segment control', async ({ page }) => {
+    await page.click('[data-page="calculator"]');
+    const tradeBtn = page.locator('.segment-btn[data-value="trade"]');
+    await expect(tradeBtn).toBeVisible();
+    await expect(tradeBtn).toHaveText('Trade / Swap');
+  });
+
+  test('Trade panel shows when trade selected, standard fields hide', async ({ page }) => {
+    await page.click('[data-page="calculator"]');
+    // Standard form grid should be visible
+    await expect(page.locator('.calc-inputs .form-grid')).toBeVisible();
+    await expect(page.locator('#tradePanel')).not.toHaveClass(/active/);
+
+    // Click trade
+    await page.click('.segment-btn[data-value="trade"]');
+    await expect(page.locator('#tradePanel')).toHaveClass(/active/);
+    // Standard form grid hidden
+    const formGridDisplay = await page.locator('.calc-inputs .form-grid').evaluate(el => getComputedStyle(el).display);
+    expect(formGridDisplay).toBe('none');
+  });
+
+  test('Trade pricing uses trade-specific margins from settings', async ({ page }) => {
+    await page.click('[data-page="calculator"]');
+    await page.click('.segment-btn[data-value="trade"]');
+
+    // Set trade in: gold coins, qty 1
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'coins');
+    await page.fill('#tradeInQty', '1');
+
+    // Set trade out: silver bars, qty 50
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '50');
+
+    // Trade-in value: gold spot $2500 * (1 - 2%) = $2450
+    const inValue = await page.textContent('#tradeInValue');
+    expect(inValue).toContain('2,450');
+
+    // Trade-out value: silver spot $32 * (1 + 3%) * 50 = $1,648
+    const outValue = await page.textContent('#tradeOutValue');
+    expect(outValue).toContain('1,648');
+  });
+
+  test('Settlement correct when outbound > inbound (customer pays)', async ({ page }) => {
+    await page.click('[data-page="calculator"]');
+    await page.click('.segment-btn[data-value="trade"]');
+
+    // Customer gives silver, gets gold (gold is more expensive)
+    await page.selectOption('#tradeInMetal', 'silver');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '10');
+
+    await page.selectOption('#tradeOutMetal', 'gold');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '1');
+
+    // Trade-in: silver $32 * (1 - 2%) * 10 = $313.60
+    // Trade-out: gold $2500 * (1 + 3%) * 1 = $2575
+    // Settlement: $2575 - $313.60 = $2261.40 (customer pays)
+    const label = await page.textContent('#tradeSettlementLabel');
+    expect(label).toContain('Customer Pays');
+  });
+
+  test('Settlement correct when inbound > outbound (we pay)', async ({ page }) => {
+    await page.click('[data-page="calculator"]');
+    await page.click('.segment-btn[data-value="trade"]');
+
+    // Customer gives gold, gets silver (gold is more expensive)
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '1');
+
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '10');
+
+    // Trade-in: gold $2500 * (1 - 2%) = $2450
+    // Trade-out: silver $32 * (1 + 3%) * 10 = $329.60
+    // Settlement: $329.60 - $2450 = -$2120.40 (we pay)
+    const label = await page.textContent('#tradeSettlementLabel');
+    expect(label).toContain('We Pay');
+  });
+
+  test('Trade logged with tradeIn/tradeOut data', async ({ page }) => {
+    await page.click('[data-page="calculator"]');
+    await page.click('.segment-btn[data-value="trade"]');
+
+    await page.selectOption('#tradeInMetal', 'gold');
+    await page.selectOption('#tradeInForm', 'coins');
+    await page.fill('#tradeInQty', '1');
+
+    await page.selectOption('#tradeOutMetal', 'silver');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '50');
+
+    await page.click('#logDealBtn');
+
+    const tx = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions'));
+      return txs.find(t => t.type === 'trade');
+    });
+
+    expect(tx).toBeTruthy();
+    expect(tx.type).toBe('trade');
+    expect(tx.tradeIn).toBeTruthy();
+    expect(tx.tradeIn.metal).toBe('gold');
+    expect(tx.tradeIn.form).toBe('coins');
+    expect(tx.tradeIn.qty).toBe(1);
+    expect(tx.tradeOut).toBeTruthy();
+    expect(tx.tradeOut.metal).toBe('silver');
+    expect(tx.tradeOut.form).toBe('bars');
+    expect(tx.tradeOut.qty).toBe(50);
+    expect(tx.settlement).toBeDefined();
+    expect(tx.profit).toBeGreaterThan(0);
+  });
+
+  test('Inventory: inbound added, outbound subtracted', async ({ page }) => {
+    // Seed with existing inventory + a trade
+    const tradeTx = {
+      id: 'tx-trade-inv',
+      date: new Date().toISOString(),
+      type: 'trade',
+      tradeIn: { metal: 'gold', form: 'bars', coinType: null, qty: 2, spot: 2500, price: 2450, total: 4900 },
+      tradeOut: { metal: 'silver', form: 'bars', coinType: null, qty: 100, spot: 32, price: 32.96, total: 3296 },
+      metal: 'gold',
+      total: 1604,
+      subtotal: 1604,
+      settlement: -1604,
+      profit: 196,
+      payment: 'cash',
+      lines: [],
+      taxRate: 0,
+      taxAmount: 0
+    };
+    // Also add existing silver inventory via a buy
+    const buyTx = {
+      id: 'tx-buy-silver',
+      date: '2025-01-01T00:00:00Z',
+      type: 'buy',
+      metal: 'silver',
+      form: 'bars',
+      qty: 200,
+      spot: 30,
+      price: 29,
+      total: 5800,
+      profit: 200,
+      payment: 'cash',
+      lines: [{ metal: 'silver', form: 'bars', coinType: null, qty: 200, spot: 30, price: 29, total: 5800, profit: 200 }]
+    };
+    await seedTradeData(page, { transactions: [tradeTx, buyTx] });
+
+    const inv = await page.evaluate(() => getInventory());
+    // Gold bars: trade-in adds 2oz
+    expect(inv.inv.gold.bars).toBeCloseTo(2, 3);
+    // Silver bars: buy adds 200oz, trade-out subtracts 100oz = 100oz
+    expect(inv.inv.silver.bars).toBeCloseTo(100, 3);
+  });
+
+  test('Trade appears in transaction log with Trade badge', async ({ page }) => {
+    const tradeTx = {
+      id: 'tx-trade-badge',
+      date: new Date().toISOString(),
+      type: 'trade',
+      tradeIn: { metal: 'gold', form: 'coins', coinType: 'eagles', qty: 1, spot: 2500, price: 2450, total: 2450 },
+      tradeOut: { metal: 'silver', form: 'bars', coinType: null, qty: 50, spot: 32, price: 32.96, total: 1648 },
+      metal: 'gold',
+      total: 802,
+      subtotal: 802,
+      settlement: -802,
+      profit: 98,
+      payment: 'cash',
+      lines: [],
+      taxRate: 0,
+      taxAmount: 0
+    };
+    await seedTradeData(page, { transactions: [tradeTx] });
+    await page.click('[data-page="transactions"]');
+
+    const badge = page.locator('#txBody .type-badge.trade');
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveText('Trade');
+  });
+
+  test('Trade filter works', async ({ page }) => {
+    const tradeTx = {
+      id: 'tx-trade-filter',
+      date: new Date().toISOString(),
+      type: 'trade',
+      tradeIn: { metal: 'gold', form: 'coins', coinType: 'eagles', qty: 1, spot: 2500, price: 2450, total: 2450 },
+      tradeOut: { metal: 'silver', form: 'bars', coinType: null, qty: 50, spot: 32, price: 32.96, total: 1648 },
+      metal: 'gold',
+      total: 802,
+      subtotal: 802,
+      settlement: -802,
+      profit: 98,
+      payment: 'cash',
+      lines: [],
+      taxRate: 0,
+      taxAmount: 0
+    };
+    const buyTx = {
+      id: 'tx-buy-filter',
+      date: new Date().toISOString(),
+      type: 'buy',
+      metal: 'gold',
+      form: 'bars',
+      qty: 1,
+      spot: 2500,
+      price: 2425,
+      total: 2425,
+      profit: 75,
+      payment: 'cash',
+      lines: [{ metal: 'gold', form: 'bars', coinType: null, qty: 1, spot: 2500, price: 2425, total: 2425, profit: 75 }]
+    };
+    await seedTradeData(page, { transactions: [tradeTx, buyTx] });
+    await page.click('[data-page="transactions"]');
+
+    // Should show both
+    let rows = await page.locator('#txBody tr').count();
+    expect(rows).toBe(2);
+
+    // Filter to trade only
+    await page.selectOption('#filterType', 'trade');
+    rows = await page.locator('#txBody tr').count();
+    expect(rows).toBe(1);
+    await expect(page.locator('#txBody .type-badge.trade')).toBeVisible();
+  });
+
+  test('P&L includes trade profit', async ({ page }) => {
+    const tradeTx = {
+      id: 'tx-trade-pnl',
+      date: new Date().toISOString(),
+      type: 'trade',
+      tradeIn: { metal: 'gold', form: 'bars', coinType: null, qty: 1, spot: 2500, price: 2450, total: 2450 },
+      tradeOut: { metal: 'silver', form: 'bars', coinType: null, qty: 50, spot: 32, price: 32.96, total: 1648 },
+      metal: 'gold',
+      total: 802,
+      subtotal: 802,
+      settlement: -802,
+      profit: 146,
+      payment: 'cash',
+      lines: [],
+      taxRate: 0,
+      taxAmount: 0
+    };
+    await seedTradeData(page, { transactions: [tradeTx] });
+    await page.click('[data-page="pnl"]');
+
+    const profitText = await page.textContent('#pnlProfit');
+    expect(profitText).toContain('146');
+  });
+
+  test('8300 flagged on large cash settlement', async ({ page }) => {
+    await page.click('[data-page="calculator"]');
+    await page.click('.segment-btn[data-value="trade"]');
+
+    // Large trade: customer gives silver, gets gold
+    await page.selectOption('#tradeInMetal', 'silver');
+    await page.selectOption('#tradeInForm', 'bars');
+    await page.fill('#tradeInQty', '100');
+
+    await page.selectOption('#tradeOutMetal', 'gold');
+    await page.selectOption('#tradeOutForm', 'bars');
+    await page.fill('#tradeOutQty', '5');
+
+    // Settlement will be gold_out_val - silver_in_val
+    // Gold: 5 * 2500 * 1.03 = 12875
+    // Silver: 100 * 32 * 0.98 = 3136
+    // Settlement: 12875 - 3136 = 9739 (customer pays, under 10K)
+    // But let's increase gold qty
+    await page.fill('#tradeOutQty', '6');
+    // Gold: 6 * 2500 * 1.03 = 15450
+    // Settlement: 15450 - 3136 = 12314 (over 10K)
+
+    // calcPayment is in the hidden form-grid, set it programmatically
+    await page.evaluate(() => { document.getElementById('calcPayment').value = 'cash'; });
+    await page.click('#logDealBtn');
+
+    const tx = await page.evaluate(() => {
+      const txs = JSON.parse(localStorage.getItem('st_transactions'));
+      return txs.find(t => t.type === 'trade');
+    });
+    expect(tx).toBeTruthy();
+    expect(tx.form8300Flag).toBe(true);
+  });
+
+  test('Both sides require qty > 0 to log', async ({ page }) => {
+    await page.click('[data-page="calculator"]');
+    await page.click('.segment-btn[data-value="trade"]');
+
+    // Only fill one side
+    await page.fill('#tradeInQty', '1');
+    // tradeOutQty is empty/0
+    await expect(page.locator('#logDealBtn')).toBeDisabled();
+
+    // Fill both
+    await page.fill('#tradeOutQty', '50');
+    await expect(page.locator('#logDealBtn')).not.toBeDisabled();
+  });
+});

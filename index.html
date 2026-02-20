@@ -654,6 +654,49 @@ td.profit-negative { color: var(--red); font-family: var(--mono); }
 .type-badge.buy { background: rgba(76, 175, 80, 0.15); color: var(--green); }
 .type-badge.sell { background: rgba(201, 168, 76, 0.15); color: var(--gold); }
 .type-badge.wholesale { background: rgba(168, 168, 168, 0.15); color: var(--silver); }
+.type-badge.trade { background: rgba(74, 144, 217, 0.15); color: #4A90D9; }
+
+.trade-panel { display: none; }
+.trade-panel.active { display: block; }
+.trade-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media (max-width: 768px) { .trade-sides { grid-template-columns: 1fr; } }
+.trade-side {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.trade-side-header {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.trade-side-header.inbound { color: var(--green); }
+.trade-side-header.outbound { color: var(--gold); }
+.trade-settlement {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-top: 12px;
+}
+.trade-settlement-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 13px;
+}
+.trade-settlement-row.total {
+  font-weight: 700;
+  font-size: 15px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 4px;
+}
 
 .row-actions {
   display: flex;
@@ -2158,6 +2201,7 @@ tr.compliance-row-flagged.compliance-row-1099b {
               <button class="segment-btn active" data-value="buy">Buying from Customer</button>
               <button class="segment-btn" data-value="sell">Selling to Customer</button>
               <button class="segment-btn" data-value="wholesale">Wholesaling</button>
+              <button class="segment-btn" data-value="trade">Trade / Swap</button>
             </div>
           </div>
           <div class="form-group">
@@ -2184,6 +2228,85 @@ tr.compliance-row-flagged.compliance-row-1099b {
               <div class="customer-dropdown" id="customerDropdown"></div>
               <input type="hidden" id="selectedCustomerId">
             </div>
+          </div>
+        </div>
+
+        <div class="trade-panel" id="tradePanel">
+          <div class="trade-sides">
+            <div class="trade-side">
+              <div class="trade-side-header inbound">Customer Gives Us (Trade-In)</div>
+              <div class="form-group">
+                <label class="form-label">Metal</label>
+                <select class="form-select" id="tradeInMetal">
+                  <option value="gold">Gold</option>
+                  <option value="silver">Silver</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Form</label>
+                <select class="form-select" id="tradeInForm">
+                  <option value="coins">Coins</option>
+                  <option value="bars">Bars</option>
+                  <option value="rounds">Rounds</option>
+                  <option value="junk">Junk Silver</option>
+                  <option value="scrap">Scrap</option>
+                </select>
+              </div>
+              <div class="form-group" id="tradeInCoinTypeGroup" style="display:none;">
+                <label class="form-label">Coin Type</label>
+                <select class="form-select" id="tradeInCoinType">
+                  <option value="eagles">American Eagles</option>
+                  <option value="maples">Maple Leafs</option>
+                  <option value="krugerrands">Krugerrands</option>
+                  <option value="britannias">Britannias</option>
+                  <option value="philharmonics">Philharmonics</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" id="tradeInQtyLabel">Quantity (Troy Oz)</label>
+                <input class="form-input" type="number" id="tradeInQty" placeholder="0.000" step="any" min="0">
+              </div>
+            </div>
+            <div class="trade-side">
+              <div class="trade-side-header outbound">We Give Customer (Trade-Out)</div>
+              <div class="form-group">
+                <label class="form-label">Metal</label>
+                <select class="form-select" id="tradeOutMetal">
+                  <option value="gold">Gold</option>
+                  <option value="silver" selected>Silver</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Form</label>
+                <select class="form-select" id="tradeOutForm">
+                  <option value="coins">Coins</option>
+                  <option value="bars">Bars</option>
+                  <option value="rounds">Rounds</option>
+                  <option value="junk">Junk Silver</option>
+                  <option value="scrap">Scrap</option>
+                </select>
+              </div>
+              <div class="form-group" id="tradeOutCoinTypeGroup" style="display:none;">
+                <label class="form-label">Coin Type</label>
+                <select class="form-select" id="tradeOutCoinType">
+                  <option value="eagles">American Eagles</option>
+                  <option value="maples">Maple Leafs</option>
+                  <option value="krugerrands">Krugerrands</option>
+                  <option value="britannias">Britannias</option>
+                  <option value="philharmonics">Philharmonics</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" id="tradeOutQtyLabel">Quantity (Troy Oz)</label>
+                <input class="form-input" type="number" id="tradeOutQty" placeholder="0.000" step="any" min="0">
+              </div>
+            </div>
+          </div>
+          <div class="trade-settlement" id="tradeSettlement">
+            <div class="trade-settlement-row"><span>Trade-In Value</span><span id="tradeInValue">$0.00</span></div>
+            <div class="trade-settlement-row"><span>Trade-Out Value</span><span id="tradeOutValue">$0.00</span></div>
+            <div class="trade-settlement-row total"><span id="tradeSettlementLabel">Settlement</span><span id="tradeSettlementAmount">$0.00</span></div>
+            <div class="trade-settlement-row"><span>Trade Profit</span><span id="tradeProfit" style="color:var(--green)">$0.00</span></div>
           </div>
         </div>
       </div>
@@ -2292,6 +2415,7 @@ tr.compliance-row-flagged.compliance-row-1099b {
             <option value="buy">Retail Buy</option>
             <option value="sell">Retail Sell</option>
             <option value="wholesale">Wholesale</option>
+            <option value="trade">Trade</option>
           </select>
         </div>
         <div class="form-group">
@@ -2667,6 +2791,79 @@ tr.compliance-row-flagged.compliance-row-1099b {
       </div>
 
       <div class="settings-section">
+        <div class="settings-section-title">Trade Margins (Spot ± %)</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Separate margins for metal-to-metal trades/swaps</div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--green);margin-bottom:8px;">Trade-In Discounts (metal we receive)</div>
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label" data-prem-label="tradeInDiscCoins">Coins %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="tradeInDiscCoins" step="0.1" value="2">
+              <button class="prem-mode-toggle" data-field="tradeInDiscCoins" type="button">%</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-prem-label="tradeInDiscBars">Bars & Rounds %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="tradeInDiscBars" step="0.1" value="2">
+              <button class="prem-mode-toggle" data-field="tradeInDiscBars" type="button">%</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-prem-label="tradeInDiscScrap">Scrap %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="tradeInDiscScrap" step="0.1" value="4">
+              <button class="prem-mode-toggle" data-field="tradeInDiscScrap" type="button">%</button>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--gold);margin:16px 0 8px;">Trade-Out Premiums (metal we give)</div>
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label" data-prem-label="tradeOutPremCoins">Coins %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="tradeOutPremCoins" step="0.1" value="4">
+              <button class="prem-mode-toggle" data-field="tradeOutPremCoins" type="button">%</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-prem-label="tradeOutPremBars">Bars & Rounds %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="tradeOutPremBars" step="0.1" value="3">
+              <button class="prem-mode-toggle" data-field="tradeOutPremBars" type="button">%</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-prem-label="tradeOutPremScrap">Scrap %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="tradeOutPremScrap" step="0.1" value="2">
+              <button class="prem-mode-toggle" data-field="tradeOutPremScrap" type="button">%</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Trade Junk Silver Margins</div>
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label" data-prem-label="tradeInDiscJunk">Trade-In Discount %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="tradeInDiscJunk" step="0.1" value="2">
+              <button class="prem-mode-toggle" data-field="tradeInDiscJunk" type="button">%</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-prem-label="tradeOutPremJunk">Trade-Out Premium %</label>
+            <div class="prem-input-wrap">
+              <input class="form-input" type="number" id="tradeOutPremJunk" step="0.1" value="4">
+              <button class="prem-mode-toggle" data-field="tradeOutPremJunk" type="button">%</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-section-title">Coin Type Adjustments (added to base coins %)</div>
         <div class="settings-grid">
           <div class="form-group">
@@ -2896,6 +3093,7 @@ tr.compliance-row-flagged.compliance-row-1099b {
           <option value="buy">Retail Buy</option>
           <option value="sell">Retail Sell</option>
           <option value="wholesale">Wholesale</option>
+          <option value="trade">Trade</option>
         </select>
       </div>
       <div class="form-group">
@@ -3245,6 +3443,9 @@ const DEFAULT_SETTINGS = {
   coinAdjustments: { eagles: 0, maples: 0, krugerrands: 0, britannias: 0, philharmonics: 0, pre33: 0 },
   junkMultiplier: 0.715, junkMultOverride: null,
   sellPremJunk: 7, buyDiscJunk: 3, whDiscJunk: 1,
+  tradeInDiscCoins: 2, tradeInDiscBars: 2, tradeInDiscScrap: 4,
+  tradeOutPremCoins: 4, tradeOutPremBars: 3, tradeOutPremScrap: 2,
+  tradeInDiscJunk: 2, tradeOutPremJunk: 4,
   threshGold: 10, threshSilver: 500,
   reorderPoints: {
     goldCoins: 0, goldBars: 0, goldRounds: 0, goldScrap: 0,
@@ -3435,7 +3636,7 @@ function getFormDisplayLabel(form, coinType) {
 }
 
 function getTypeLabel(type) {
-  return { buy: 'Retail Buy', sell: 'Retail Sell', wholesale: 'Wholesale' }[type] || type;
+  return { buy: 'Retail Buy', sell: 'Retail Sell', wholesale: 'Wholesale', trade: 'Trade' }[type] || type;
 }
 
 function populateScrapPurities(metal) {
@@ -3464,6 +3665,13 @@ function getScrapFineOz(rawQty) {
 }
 
 function getTxLines(tx) {
+  if (tx.type === 'trade' && tx.tradeIn && tx.tradeOut) {
+    // Return both sides as pseudo-lines for rendering and filtering
+    return [
+      { metal: tx.tradeIn.metal, form: tx.tradeIn.form, coinType: tx.tradeIn.coinType, qty: tx.tradeIn.qty, spot: tx.tradeIn.spot, price: tx.tradeIn.price, total: tx.tradeIn.total, profit: 0, _tradeSide: 'in' },
+      { metal: tx.tradeOut.metal, form: tx.tradeOut.form, coinType: tx.tradeOut.coinType, qty: tx.tradeOut.qty, spot: tx.tradeOut.spot, price: tx.tradeOut.price, total: tx.tradeOut.total, profit: 0, _tradeSide: 'out' }
+    ];
+  }
   if (tx.lines && tx.lines.length > 0) return tx.lines;
   const line = { metal: tx.metal, form: tx.form, coinType: tx.coinType, qty: tx.qty, spot: tx.spot, price: tx.price, total: tx.total, profit: tx.profit };
   if (tx.scrapPurity) { line.scrapPurity = tx.scrapPurity; line.scrapWeightUnit = tx.scrapWeightUnit; line.rawQty = tx.rawQty; }
@@ -3575,11 +3783,19 @@ function getMargin(txType, form, coinType) {
     if (form === 'coins') base = -settings.whDiscCoins / 100;
     else if (form === 'bars' || form === 'rounds') base = -settings.whDiscBars / 100;
     else if (form === 'scrap') base = -settings.whDiscScrap / 100;
+  } else if (txType === 'tradeIn') {
+    if (form === 'coins') base = -settings.tradeInDiscCoins / 100;
+    else if (form === 'bars' || form === 'rounds') base = -settings.tradeInDiscBars / 100;
+    else if (form === 'scrap') base = -settings.tradeInDiscScrap / 100;
+  } else if (txType === 'tradeOut') {
+    if (form === 'coins') base = settings.tradeOutPremCoins / 100;
+    else if (form === 'bars' || form === 'rounds') base = settings.tradeOutPremBars / 100;
+    else if (form === 'scrap') base = settings.tradeOutPremScrap / 100;
   }
   if (form === 'coins' && coinType) {
     const adjKey = coinType.startsWith('pre33') ? 'pre33' : coinType;
     const adj = (settings.coinAdjustments || {})[adjKey] || 0;
-    if (txType === 'buy') base -= adj / 100;
+    if (txType === 'buy' || txType === 'tradeIn') base -= adj / 100;
     else base += adj / 100;
   }
   return base;
@@ -3589,7 +3805,10 @@ const PREM_LABEL_MAP = {
   sellPremCoins: 'Coins', sellPremBars: 'Bars & Rounds', sellPremScrap: 'Scrap',
   buyDiscCoins: 'Coins', buyDiscBars: 'Bars & Rounds', buyDiscScrap: 'Scrap',
   whDiscCoins: 'Coins', whDiscBars: 'Bars & Rounds', whDiscScrap: 'Scrap',
-  sellPremJunk: 'Sell Premium', buyDiscJunk: 'Buy Discount', whDiscJunk: 'Wholesale Discount'
+  sellPremJunk: 'Sell Premium', buyDiscJunk: 'Buy Discount', whDiscJunk: 'Wholesale Discount',
+  tradeInDiscCoins: 'Coins', tradeInDiscBars: 'Bars & Rounds', tradeInDiscScrap: 'Scrap',
+  tradeOutPremCoins: 'Coins', tradeOutPremBars: 'Bars & Rounds', tradeOutPremScrap: 'Scrap',
+  tradeInDiscJunk: 'Trade-In Discount', tradeOutPremJunk: 'Trade-Out Premium'
 };
 
 function updatePremToggleUI(field) {
@@ -3627,11 +3846,15 @@ function getPremiumFieldForFormType(txType, form) {
   if (form === 'junk') {
     if (txType === 'sell') return 'sellPremJunk';
     if (txType === 'buy') return 'buyDiscJunk';
+    if (txType === 'tradeIn') return 'tradeInDiscJunk';
+    if (txType === 'tradeOut') return 'tradeOutPremJunk';
     return 'whDiscJunk';
   }
   const formKey = (form === 'bars' || form === 'rounds') ? 'Bars' : form === 'scrap' ? 'Scrap' : 'Coins';
   if (txType === 'sell') return 'sellPrem' + formKey;
   if (txType === 'buy') return 'buyDisc' + formKey;
+  if (txType === 'tradeIn') return 'tradeInDisc' + formKey;
+  if (txType === 'tradeOut') return 'tradeOutPrem' + formKey;
   return 'whDisc' + formKey;
 }
 
@@ -3646,12 +3869,12 @@ function calcDealPrice(metal, form, txType, coinType) {
     const junkValue = settings[junkField] || 0;
 
     if (junkMode === 'dollar') {
-      const pricePerUnit = txType === 'sell' ? multiplier + junkValue : multiplier - junkValue;
+      const pricePerUnit = (txType === 'sell' || txType === 'tradeOut') ? multiplier + junkValue : multiplier - junkValue;
       return { spot, pricePerUnit, multiplier, isJunk: true };
     } else {
       let adj = 1;
-      if (txType === 'buy') adj = 1 - junkValue / 100;
-      else if (txType === 'sell') adj = 1 + junkValue / 100;
+      if (txType === 'buy' || txType === 'tradeIn') adj = 1 - junkValue / 100;
+      else if (txType === 'sell' || txType === 'tradeOut') adj = 1 + junkValue / 100;
       else if (txType === 'wholesale') adj = 1 - junkValue / 100;
       return { spot, pricePerUnit: multiplier * adj, multiplier, isJunk: true };
     }
@@ -3663,13 +3886,13 @@ function calcDealPrice(metal, form, txType, coinType) {
 
   if (mode === 'dollar') {
     let pricePerOz;
-    if (txType === 'sell') pricePerOz = spot + value;
+    if (txType === 'sell' || txType === 'tradeOut') pricePerOz = spot + value;
     else pricePerOz = spot - value;
     // Apply coin adjustment (still %) on top
     if (form === 'coins' && coinType) {
       const adjKey = coinType.startsWith('pre33') ? 'pre33' : coinType;
       const adj = (settings.coinAdjustments || {})[adjKey] || 0;
-      if (txType === 'buy' || txType === 'wholesale') pricePerOz *= (1 - adj / 100);
+      if (txType === 'buy' || txType === 'wholesale' || txType === 'tradeIn') pricePerOz *= (1 - adj / 100);
       else pricePerOz *= (1 + adj / 100);
     }
     return { spot, pricePerOz, margin: (pricePerOz - spot) / spot, isJunk: false };
@@ -3852,8 +4075,97 @@ calcTypeEl.querySelectorAll('.segment-btn').forEach(btn => {
     calcTypeEl.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     calcTxType = btn.dataset.value;
-    recalcDeal();
+    toggleTradeMode(calcTxType === 'trade');
+    if (calcTxType === 'trade') recalcTrade();
+    else recalcDeal();
   });
+});
+
+function toggleTradeMode(isTrade) {
+  const formGrid = document.querySelector('.calc-inputs .form-grid');
+  const tradePanel = $('tradePanel');
+  // Hide the deal summary rows but keep buttons visible
+  const outputRows = document.querySelectorAll('#calcOutput .output-row, #calcOutput .card-title, #calcOutput .deal-lines-container');
+  const addLineBtn = $('addLineBtn');
+  if (isTrade) {
+    formGrid.style.display = 'none';
+    tradePanel.classList.add('active');
+    outputRows.forEach(el => el.style.display = 'none');
+    addLineBtn.style.display = 'none';
+  } else {
+    formGrid.style.display = '';
+    tradePanel.classList.remove('active');
+    outputRows.forEach(el => el.style.display = '');
+    addLineBtn.style.display = '';
+  }
+}
+
+function recalcTrade() {
+  const inMetal = $('tradeInMetal').value;
+  const inForm = $('tradeInForm').value;
+  const inCoinType = inForm === 'coins' ? $('tradeInCoinType').value : null;
+  const inQty = parseFloat($('tradeInQty').value) || 0;
+
+  const outMetal = $('tradeOutMetal').value;
+  const outForm = $('tradeOutForm').value;
+  const outCoinType = outForm === 'coins' ? $('tradeOutCoinType').value : null;
+  const outQty = parseFloat($('tradeOutQty').value) || 0;
+
+  // Price inbound (what customer gives us — like a buy, spot minus discount)
+  const inDeal = calcDealPrice(inMetal, inForm, 'tradeIn', inCoinType);
+  // Price outbound (what we give customer — like a sell, spot plus premium)
+  const outDeal = calcDealPrice(outMetal, outForm, 'tradeOut', outCoinType);
+
+  let inTotal, outTotal, inPrice, outPrice;
+  if (inDeal.isJunk) {
+    inPrice = inDeal.pricePerUnit;
+    inTotal = inDeal.pricePerUnit * inQty;
+  } else {
+    inPrice = inDeal.pricePerOz;
+    inTotal = inDeal.pricePerOz * inQty;
+  }
+  if (outDeal.isJunk) {
+    outPrice = outDeal.pricePerUnit;
+    outTotal = outDeal.pricePerUnit * outQty;
+  } else {
+    outPrice = outDeal.pricePerOz;
+    outTotal = outDeal.pricePerOz * outQty;
+  }
+
+  const settlement = outTotal - inTotal; // positive = customer owes us
+  const inSpotTotal = inDeal.isJunk ? (inDeal.spot * settings.junkMultiplier * inQty) : (inDeal.spot * inQty);
+  const outSpotTotal = outDeal.isJunk ? (outDeal.spot * settings.junkMultiplier * outQty) : (outDeal.spot * outQty);
+  const inMarginProfit = inSpotTotal - inTotal; // we buy below spot
+  const outMarginProfit = outTotal - outSpotTotal; // we sell above spot
+  const profit = inMarginProfit + outMarginProfit;
+
+  $('tradeInValue').textContent = fmt(inTotal);
+  $('tradeOutValue').textContent = fmt(outTotal);
+  $('tradeSettlementAmount').textContent = (settlement >= 0 ? '' : '-') + fmt(Math.abs(settlement));
+  $('tradeSettlementLabel').textContent = settlement >= 0 ? 'Customer Pays Us' : 'We Pay Customer';
+  $('tradeSettlementAmount').style.color = settlement >= 0 ? 'var(--green)' : 'var(--red)';
+  $('tradeProfit').textContent = (profit >= 0 ? '+' : '-') + fmt(Math.abs(profit));
+
+  $('logDealBtn').disabled = inQty <= 0 || outQty <= 0;
+}
+
+// Trade panel event listeners
+['tradeInMetal', 'tradeInForm', 'tradeInCoinType', 'tradeInQty',
+ 'tradeOutMetal', 'tradeOutForm', 'tradeOutCoinType', 'tradeOutQty'].forEach(id => {
+  $(id).addEventListener('input', () => { if (calcTxType === 'trade') recalcTrade(); });
+  $(id).addEventListener('change', () => { if (calcTxType === 'trade') recalcTrade(); });
+});
+
+// Show/hide coin type selectors in trade panel
+$('tradeInForm').addEventListener('change', () => {
+  $('tradeInCoinTypeGroup').style.display = $('tradeInForm').value === 'coins' ? '' : 'none';
+  if ($('tradeInForm').value === 'junk') { $('tradeInMetal').value = 'silver'; }
+  $('tradeInQtyLabel').textContent = $('tradeInForm').value === 'junk' ? 'Quantity (Face Value $)' : 'Quantity (Troy Oz)';
+});
+$('tradeOutForm').addEventListener('change', () => {
+  $('tradeOutCoinTypeGroup').style.display = $('tradeOutForm').value === 'coins' ? '' : 'none';
+  if ($('tradeOutForm').value === 'junk') { $('tradeOutMetal').value = 'silver'; }
+  $('tradeOutQtyLabel').textContent = $('tradeOutForm').value === 'junk' ? 'Quantity (Face Value $)' : 'Quantity (Troy Oz)';
 });
 
 // Form select: lock to silver if junk selected, show/hide coin type & scrap groups
@@ -4101,6 +4413,11 @@ function recalcDeal() {
 
 // ─── Log Deal ───
 $('logDealBtn').addEventListener('click', () => {
+  if (calcTxType === 'trade') {
+    logTradeDeal();
+    return;
+  }
+
   // If current form has a qty, add it as a line first
   const currentQty = parseFloat(calcQty.value) || 0;
   if (currentQty > 0) {
@@ -4228,6 +4545,105 @@ $('logDealBtn').addEventListener('click', () => {
   updateDashboard();
 });
 
+function logTradeDeal() {
+  const inMetal = $('tradeInMetal').value;
+  const inForm = $('tradeInForm').value;
+  const inCoinType = inForm === 'coins' ? $('tradeInCoinType').value : null;
+  const inQty = parseFloat($('tradeInQty').value) || 0;
+
+  const outMetal = $('tradeOutMetal').value;
+  const outForm = $('tradeOutForm').value;
+  const outCoinType = outForm === 'coins' ? $('tradeOutCoinType').value : null;
+  const outQty = parseFloat($('tradeOutQty').value) || 0;
+
+  if (inQty <= 0 || outQty <= 0) { alert('Both trade sides require quantity > 0.'); return; }
+
+  const inDeal = calcDealPrice(inMetal, inForm, 'tradeIn', inCoinType);
+  const outDeal = calcDealPrice(outMetal, outForm, 'tradeOut', outCoinType);
+
+  if (inDeal.spot <= 0 || outDeal.spot <= 0) { alert('Spot price is not loaded or invalid.'); return; }
+
+  const inPrice = inDeal.isJunk ? inDeal.pricePerUnit : inDeal.pricePerOz;
+  const inTotal = inPrice * inQty;
+  const outPrice = outDeal.isJunk ? outDeal.pricePerUnit : outDeal.pricePerOz;
+  const outTotal = outPrice * outQty;
+
+  const settlement = outTotal - inTotal;
+  const inSpotTotal = inDeal.isJunk ? (inDeal.spot * settings.junkMultiplier * inQty) : (inDeal.spot * inQty);
+  const outSpotTotal = outDeal.isJunk ? (outDeal.spot * settings.junkMultiplier * outQty) : (outDeal.spot * outQty);
+  const profit = (inSpotTotal - inTotal) + (outTotal - outSpotTotal);
+
+  const selectedCustomerIdInput = $('selectedCustomerId');
+  const tx = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    date: new Date().toISOString(),
+    type: 'trade',
+    tradeIn: { metal: inMetal, form: inForm, coinType: inCoinType, qty: inQty, spot: inDeal.spot, price: inPrice, total: inTotal },
+    tradeOut: { metal: outMetal, form: outForm, coinType: outCoinType, qty: outQty, spot: outDeal.spot, price: outPrice, total: outTotal },
+    metal: inMetal, // backward compat
+    total: Math.abs(settlement),
+    subtotal: Math.abs(settlement),
+    taxRate: 0,
+    taxAmount: 0,
+    settlement,
+    profit,
+    payment: calcPayment.value,
+    customerId: selectedCustomerIdInput.value || undefined,
+    notes: $('calcNotes').value.trim() || undefined,
+    lines: []
+  };
+
+  // Form 8300 on cash settlement
+  if (tx.payment === 'cash' && Math.abs(settlement) >= 10000) {
+    tx.form8300Flag = true;
+  }
+  if (tx.payment === 'cash' && tx.customerId && Math.abs(settlement) > 0) {
+    const prior24h = get24HourCashTotal(tx.customerId, tx.date);
+    if (prior24h + Math.abs(settlement) >= 10000) {
+      tx.form8300Flag = true;
+      transactions.forEach(t => {
+        if (t.customerId === tx.customerId && t.payment === 'cash' && t.total > 0 &&
+            Math.abs(new Date(t.date).getTime() - new Date(tx.date).getTime()) <= 86400000) {
+          t.form8300Flag = true;
+        }
+      });
+    }
+  }
+
+  // 1099-B: check inbound side (we're buying from customer)
+  const pseudo1099B = { type: 'buy', metal: inMetal, form: inForm, coinType: inCoinType, qty: inQty, customerId: tx.customerId, date: tx.date };
+  const result1099B = check1099B(pseudo1099B);
+  if (result1099B.reportable) {
+    tx.form1099BFlag = true;
+  }
+
+  transactions.unshift(tx);
+  Store.set('transactions', transactions);
+
+  // Cash drawer: settlement amount only
+  if (cashDrawer.status === 'open' && tx.payment === 'cash' && Math.abs(settlement) > 0.005) {
+    if (settlement > 0) {
+      addDrawerEntry('sale', settlement, 'Trade settlement — customer pays ' + fmt(settlement), tx.id);
+    } else {
+      addDrawerEntry('buy', settlement, 'Trade settlement — we pay ' + fmt(Math.abs(settlement)), tx.id);
+    }
+  }
+
+  const msg = $('dealLoggedMsg');
+  msg.classList.add('show');
+  setTimeout(() => msg.classList.remove('show'), 2000);
+  showReceipt(tx.id);
+
+  // Reset trade panel
+  $('tradeInQty').value = '';
+  $('tradeOutQty').value = '';
+  $('calcNotes').value = '';
+  clearCustomer();
+  recalcTrade();
+  checkAlerts();
+  updateDashboard();
+}
+
 // ─── Transaction Log ───
 let sortField = 'date';
 let sortDir = -1; // -1 = desc
@@ -4286,14 +4702,22 @@ function renderTransactions() {
     const d = new Date(tx.date);
     const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
                     d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    const typeClass = tx.type === 'buy' ? 'buy' : tx.type === 'sell' ? 'sell' : 'wholesale';
+    const typeClass = tx.type === 'buy' ? 'buy' : tx.type === 'sell' ? 'sell' : tx.type === 'trade' ? 'trade' : 'wholesale';
     const profitClass = tx.profit >= 0 ? 'profit-positive' : 'profit-negative';
 
     const lines = getTxLines(tx);
     const isMulti = lines.length > 1;
     let metalCol, formCol, qtyLabel, spotCol, priceCol;
 
-    if (isMulti) {
+    if (tx.type === 'trade' && tx.tradeIn && tx.tradeOut) {
+      const inLabel = tx.tradeIn.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
+      const outLabel = tx.tradeOut.metal === 'gold' ? '<span style="color:var(--gold)">Gold</span>' : '<span style="color:var(--silver)">Silver</span>';
+      metalCol = inLabel + ' → ' + outLabel;
+      formCol = getFormLabel(tx.tradeIn.form) + ' → ' + getFormLabel(tx.tradeOut.form);
+      qtyLabel = fmtOz(tx.tradeIn.qty) + ' → ' + fmtOz(tx.tradeOut.qty);
+      spotCol = '—';
+      priceCol = (tx.settlement >= 0 ? '+' : '-') + fmt(Math.abs(tx.settlement));
+    } else if (isMulti) {
       const metals = [...new Set(lines.map(l => l.metal))];
       metalCol = metals.map(m => m === 'gold' ? '<span style="color:var(--gold)">Au</span>' : '<span style="color:var(--silver)">Ag</span>').join('+');
       formCol = lines.length + ' items';
@@ -4372,6 +4796,23 @@ $('exportCsvBtn').addEventListener('click', () => {
   const headers = ['Deal ID', 'Date', 'Metal', 'Form', 'Coin Type', 'Type', 'Customer', 'Quantity', 'Spot Price', 'Our Price', 'Total', 'Tax', 'Payment', 'Profit', 'Form 8300', '1099-B', 'Notes'];
   const rows = [];
   list.forEach(tx => {
+    if (tx.type === 'trade' && tx.tradeIn && tx.tradeOut) {
+      const inMetal = tx.tradeIn.metal === 'gold' ? 'Gold' : 'Silver';
+      const outMetal = tx.tradeOut.metal === 'gold' ? 'Gold' : 'Silver';
+      const tradeNotes = `Trade: ${inMetal} ${getFormLabel(tx.tradeIn.form)} ${tx.tradeIn.qty}oz → ${outMetal} ${getFormLabel(tx.tradeOut.form)} ${tx.tradeOut.qty}oz, Settlement: ${fmt(tx.settlement)}`;
+      rows.push([
+        tx.id,
+        new Date(tx.date).toLocaleString(),
+        inMetal + '→' + outMetal, tx.tradeIn.form + '→' + tx.tradeOut.form, '',
+        getTypeLabel(tx.type),
+        getCustomerName(tx.customerId),
+        tx.tradeIn.qty + '→' + tx.tradeOut.qty, tx.tradeIn.spot, '', Math.abs(tx.settlement), tx.taxAmount || 0, tx.payment, tx.profit,
+        tx.form8300Flag ? (tx.form8300Reviewed ? 'Reviewed' : 'Flagged') : '',
+        tx.form1099BFlag ? (tx.form1099BFiled ? 'Filed' : 'Flagged') : '',
+        tx.notes ? tx.notes + '; ' + tradeNotes : tradeNotes
+      ]);
+      return;
+    }
     const lines = getTxLines(tx);
     lines.forEach(line => {
       rows.push([
@@ -4402,6 +4843,8 @@ $('exportCsvBtn').addEventListener('click', () => {
 window.openEditModal = function(id) {
   const tx = transactions.find(t => t.id === id);
   if (!tx) return;
+  // Disable type change for trade transactions (unique structure)
+  $('editType').disabled = tx.type === 'trade';
   const lines = getTxLines(tx);
   const line = lines[0];
   $('editTxId').value = id;
@@ -4716,13 +5159,37 @@ function generateReceipt(tx) {
   const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
   const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const paymentLabel = tx.payment === 'cash' ? 'Cash' : tx.payment === 'wire' ? 'Bank Wire' : 'Check';
-  const typeLabel = tx.type === 'buy' ? 'PURCHASE FROM CUSTOMER' : tx.type === 'sell' ? 'SALE TO CUSTOMER' : 'WHOLESALE';
+  const typeLabel = tx.type === 'buy' ? 'PURCHASE FROM CUSTOMER' : tx.type === 'sell' ? 'SALE TO CUSTOMER' : tx.type === 'trade' ? 'METAL TRADE / SWAP' : 'WHOLESALE';
   const txId = tx.id.toUpperCase().slice(0, 10);
   const lines = getTxLines(tx);
   const isMulti = lines.length > 1;
 
   let itemsHtml;
-  if (isMulti) {
+  if (tx.type === 'trade' && tx.tradeIn && tx.tradeOut) {
+    const inMetal = tx.tradeIn.metal === 'gold' ? 'Gold' : 'Silver';
+    const outMetal = tx.tradeOut.metal === 'gold' ? 'Gold' : 'Silver';
+    const inQtyLabel = tx.tradeIn.form === 'junk' ? '$' + fmtOz(tx.tradeIn.qty) + ' FV' : fmtOz(tx.tradeIn.qty) + ' oz';
+    const outQtyLabel = tx.tradeOut.form === 'junk' ? '$' + fmtOz(tx.tradeOut.qty) + ' FV' : fmtOz(tx.tradeOut.qty) + ' oz';
+    const settlementDir = tx.settlement >= 0 ? 'Customer Pays' : 'We Pay';
+    itemsHtml = `
+    <div class="receipt-body">
+      <div style="margin-bottom:12px;padding-bottom:8px;border-bottom:1px dotted #ddd;">
+        <div style="font-weight:700;font-size:12px;color:#4CAF50;margin-bottom:6px;">CUSTOMER GIVES US</div>
+        <div class="receipt-row"><span class="receipt-label">Metal</span><span class="receipt-val">${inMetal}</span></div>
+        <div class="receipt-row"><span class="receipt-label">Form</span><span class="receipt-val">${getFormLabel(tx.tradeIn.form)}</span></div>
+        <div class="receipt-row"><span class="receipt-label">Quantity</span><span class="receipt-val">${inQtyLabel}</span></div>
+        <div class="receipt-row"><span class="receipt-label">Value</span><span class="receipt-val">${fmt(tx.tradeIn.total)}</span></div>
+      </div>
+      <div style="margin-bottom:12px;padding-bottom:8px;border-bottom:1px dotted #ddd;">
+        <div style="font-weight:700;font-size:12px;color:#C9A84C;margin-bottom:6px;">WE GIVE CUSTOMER</div>
+        <div class="receipt-row"><span class="receipt-label">Metal</span><span class="receipt-val">${outMetal}</span></div>
+        <div class="receipt-row"><span class="receipt-label">Form</span><span class="receipt-val">${getFormLabel(tx.tradeOut.form)}</span></div>
+        <div class="receipt-row"><span class="receipt-label">Quantity</span><span class="receipt-val">${outQtyLabel}</span></div>
+        <div class="receipt-row"><span class="receipt-label">Value</span><span class="receipt-val">${fmt(tx.tradeOut.total)}</span></div>
+      </div>
+      <div class="receipt-row"><span class="receipt-label">Payment Method</span><span class="receipt-val">${paymentLabel}</span></div>
+    </div>`;
+  } else if (isMulti) {
     itemsHtml = `<div class="receipt-body">` +
       lines.map((line, i) => {
         const metalLabel = line.metal === 'gold' ? 'Gold' : 'Silver';
@@ -4766,7 +5233,11 @@ function generateReceipt(tx) {
       <span style="background:#f0f0f0;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px;">${typeLabel}</span>
     </div>
     ${itemsHtml}
-    ${(tx.taxAmount || 0) > 0 ? `
+    ${tx.type === 'trade' && tx.settlement != null ? `
+    <div class="receipt-total">
+      <div class="receipt-total-label">${tx.settlement >= 0 ? 'Customer Pays' : 'We Pay'}</div>
+      <div class="receipt-total-value">${fmt(Math.abs(tx.settlement))}${tx.form8300Flag ? '<span class="compliance-indicator"></span>' : ''}</div>
+    </div>` : (tx.taxAmount || 0) > 0 ? `
     <div class="receipt-total" style="border-bottom:none;padding-bottom:0;margin-bottom:0;">
       <div class="receipt-total-label">Subtotal</div>
       <div class="receipt-total-value" style="font-size:20px;">${fmt(tx.subtotal != null ? tx.subtotal : tx.total)}</div>
@@ -4832,6 +5303,18 @@ function getInventory() {
   forms.forEach(f => { inv.gold[f] = 0; inv.silver[f] = 0; });
 
   transactions.forEach(tx => {
+    if (tx.type === 'trade' && tx.tradeIn && tx.tradeOut) {
+      // Trade: inbound adds to inventory, outbound subtracts
+      const inQ = tx.tradeIn.form === 'junk' ? tx.tradeIn.qty * settings.junkMultiplier
+                : isPre33(tx.tradeIn.coinType) ? tx.tradeIn.qty * (PRE33_GOLD_CONTENT[tx.tradeIn.coinType] || 1)
+                : tx.tradeIn.qty;
+      inv[tx.tradeIn.metal][tx.tradeIn.form] += inQ;
+      const outQ = tx.tradeOut.form === 'junk' ? tx.tradeOut.qty * settings.junkMultiplier
+                 : isPre33(tx.tradeOut.coinType) ? tx.tradeOut.qty * (PRE33_GOLD_CONTENT[tx.tradeOut.coinType] || 1)
+                 : tx.tradeOut.qty;
+      inv[tx.tradeOut.metal][tx.tradeOut.form] -= outQ;
+      return;
+    }
     getTxLines(tx).forEach(line => {
       const metal = line.metal;
       const qty = line.form === 'junk' ? line.qty * settings.junkMultiplier
@@ -4864,7 +5347,47 @@ function getCostBasis() {
 
   const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
 
+  function consumeFifo(metal, form, effectiveQty, total, txId) {
+    let remaining = effectiveQty;
+    let costConsumed = 0;
+    const formLots = lots[metal][form];
+    while (remaining > 0.0001 && formLots.length > 0) {
+      const lot = formLots[0];
+      if (lot.qty <= remaining + 0.0001) {
+        costConsumed += lot.qty * lot.costPerOz;
+        remaining -= lot.qty;
+        formLots.shift();
+      } else {
+        costConsumed += remaining * lot.costPerOz;
+        lot.qty -= remaining;
+        remaining = 0;
+      }
+    }
+    const realized = total - costConsumed;
+    if (!realizedByTx[txId]) realizedByTx[txId] = 0;
+    realizedByTx[txId] += realized;
+    totalRealizedPnl += realized;
+  }
+
   sorted.forEach(tx => {
+    if (tx.type === 'trade' && tx.tradeIn && tx.tradeOut) {
+      // TradeIn adds to FIFO lots (we acquire metal)
+      const ti = tx.tradeIn;
+      const inEffQty = ti.form === 'junk' ? ti.qty * settings.junkMultiplier
+                     : isPre33(ti.coinType) ? ti.qty * (PRE33_GOLD_CONTENT[ti.coinType] || 1)
+                     : ti.qty;
+      const costPerOz = inEffQty > 0 ? ti.total / inEffQty : 0;
+      lots[ti.metal][ti.form].push({ qty: inEffQty, costPerOz, date: tx.date, txId: tx.id });
+
+      // TradeOut consumes FIFO lots (we give metal)
+      const to = tx.tradeOut;
+      const outEffQty = to.form === 'junk' ? to.qty * settings.junkMultiplier
+                      : isPre33(to.coinType) ? to.qty * (PRE33_GOLD_CONTENT[to.coinType] || 1)
+                      : to.qty;
+      consumeFifo(to.metal, to.form, outEffQty, to.total, tx.id);
+      return;
+    }
+
     getTxLines(tx).forEach(line => {
       const metal = line.metal;
       const form = line.form;
@@ -4876,25 +5399,7 @@ function getCostBasis() {
         const costPerOz = effectiveQty > 0 ? line.total / effectiveQty : 0;
         lots[metal][form].push({ qty: effectiveQty, costPerOz, date: tx.date, txId: tx.id });
       } else {
-        let remaining = effectiveQty;
-        let costConsumed = 0;
-        const formLots = lots[metal][form];
-        while (remaining > 0.0001 && formLots.length > 0) {
-          const lot = formLots[0];
-          if (lot.qty <= remaining + 0.0001) {
-            costConsumed += lot.qty * lot.costPerOz;
-            remaining -= lot.qty;
-            formLots.shift();
-          } else {
-            costConsumed += remaining * lot.costPerOz;
-            lot.qty -= remaining;
-            remaining = 0;
-          }
-        }
-        const realized = line.total - costConsumed;
-        if (!realizedByTx[tx.id]) realizedByTx[tx.id] = 0;
-        realizedByTx[tx.id] += realized;
-        totalRealizedPnl += realized;
+        consumeFifo(metal, form, effectiveQty, line.total, tx.id);
       }
     });
   });
@@ -5080,26 +5585,29 @@ function updatePnlPage() {
   const buys = periodTx.filter(t => t.type === 'buy');
   const sells = periodTx.filter(t => t.type === 'sell');
   const wholesale = periodTx.filter(t => t.type === 'wholesale');
+  const trades = periodTx.filter(t => t.type === 'trade');
 
   const totalBought = buys.reduce((s, t) => s + t.total, 0);
+  const tradeInTotal = trades.reduce((s, t) => s + (t.tradeIn ? t.tradeIn.total : 0), 0);
   const totalSold = sells.reduce((s, t) => s + (t.subtotal != null ? t.subtotal : t.total), 0);
+  const tradeOutTotal = trades.reduce((s, t) => s + (t.tradeOut ? t.tradeOut.total : 0), 0);
   const totalTaxCollected = sells.reduce((s, t) => s + (t.taxAmount || 0), 0);
   const totalWholesale = wholesale.reduce((s, t) => s + t.total, 0);
   const totalProfit = periodTx.reduce((s, t) => s + t.profit, 0);
 
-  $('pnlBought').textContent = fmt(totalBought);
-  $('pnlBoughtCount').textContent = buys.length + ' transactions';
-  $('pnlSold').textContent = fmt(totalSold + totalWholesale);
-  $('pnlSoldCount').textContent = (sells.length + wholesale.length) + ' transactions';
+  $('pnlBought').textContent = fmt(totalBought + tradeInTotal);
+  $('pnlBoughtCount').textContent = (buys.length + trades.length) + ' transactions';
+  $('pnlSold').textContent = fmt(totalSold + totalWholesale + tradeOutTotal);
+  $('pnlSoldCount').textContent = (sells.length + wholesale.length + trades.length) + ' transactions';
   $('pnlProfit').textContent = (totalProfit >= 0 ? '+' : '-') + fmt(totalProfit);
 
-  const revenue = totalSold + totalWholesale;
+  const revenue = totalSold + totalWholesale + tradeOutTotal;
   const marginPct = revenue > 0 ? (totalProfit / revenue * 100).toFixed(1) : 0;
   $('pnlMarginPct').textContent = marginPct + '% margin';
 
   // FIFO cost basis
   const cb = getCostBasis();
-  const periodSellIds = periodTx.filter(t => t.type === 'sell' || t.type === 'wholesale').map(t => t.id);
+  const periodSellIds = periodTx.filter(t => t.type === 'sell' || t.type === 'wholesale' || t.type === 'trade').map(t => t.id);
   const fifoProfit = periodSellIds.reduce((s, id) => s + (cb.realizedByTx[id] || 0), 0);
   $('pnlFifoProfit').textContent = (fifoProfit >= 0 ? '+' : '-') + fmt(fifoProfit) + ' FIFO basis';
 
@@ -5121,10 +5629,12 @@ function updatePnlPage() {
   }
 
   // Capital position
-  // Cash/wire in = sells + wholesale (money coming in) + tax collected
-  // Cash/wire out = buys (money going out)
-  const cashIn = totalSold + totalWholesale + totalTaxCollected;
-  const cashOut = totalBought;
+  // Cash/wire in = sells + wholesale + trade settlements received + tax collected
+  // Cash/wire out = buys + trade settlements paid
+  const tradeSettlementIn = trades.reduce((s, t) => s + (t.settlement > 0 ? t.settlement : 0), 0);
+  const tradeSettlementOut = trades.reduce((s, t) => s + (t.settlement < 0 ? Math.abs(t.settlement) : 0), 0);
+  const cashIn = totalSold + totalWholesale + totalTaxCollected + tradeSettlementIn;
+  const cashOut = totalBought + tradeSettlementOut;
   const invValue = (totalGold * spotPrices.gold) + (totalSilver * spotPrices.silver);
 
   $('pnlCashIn').textContent = fmt(cashIn);
@@ -5575,7 +6085,10 @@ function buildVolumeChart(txs) {
       key = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
     }
     if (!buckets[key]) buckets[key] = { label: key, buys: 0, sells: 0 };
-    if (tx.type === 'buy') buckets[key].buys += tx.total || 0;
+    if (tx.type === 'trade' && tx.tradeIn && tx.tradeOut) {
+      buckets[key].buys += tx.tradeIn.total || 0;
+      buckets[key].sells += tx.tradeOut.total || 0;
+    } else if (tx.type === 'buy') buckets[key].buys += tx.total || 0;
     else buckets[key].sells += tx.total || 0;
   });
   const data = Object.values(buckets);
@@ -5858,6 +6371,14 @@ function loadSettings() {
   $('sellPremJunk').value = settings.sellPremJunk;
   $('buyDiscJunk').value = settings.buyDiscJunk;
   $('whDiscJunk').value = settings.whDiscJunk;
+  $('tradeInDiscCoins').value = settings.tradeInDiscCoins;
+  $('tradeInDiscBars').value = settings.tradeInDiscBars;
+  $('tradeInDiscScrap').value = settings.tradeInDiscScrap;
+  $('tradeOutPremCoins').value = settings.tradeOutPremCoins;
+  $('tradeOutPremBars').value = settings.tradeOutPremBars;
+  $('tradeOutPremScrap').value = settings.tradeOutPremScrap;
+  $('tradeInDiscJunk').value = settings.tradeInDiscJunk;
+  $('tradeOutPremJunk').value = settings.tradeOutPremJunk;
   $('threshGold').value = settings.threshGold;
   $('threshSilver').value = settings.threshSilver;
   const rp = settings.reorderPoints || {};
@@ -5907,6 +6428,14 @@ $('saveSettingsBtn').addEventListener('click', () => {
     sellPremJunk: Math.max(0, parseFloat($('sellPremJunk').value) || 0),
     buyDiscJunk: Math.max(0, parseFloat($('buyDiscJunk').value) || 0),
     whDiscJunk: Math.max(0, parseFloat($('whDiscJunk').value) || 0),
+    tradeInDiscCoins: Math.max(0, parseFloat($('tradeInDiscCoins').value) || 0),
+    tradeInDiscBars: Math.max(0, parseFloat($('tradeInDiscBars').value) || 0),
+    tradeInDiscScrap: Math.max(0, parseFloat($('tradeInDiscScrap').value) || 0),
+    tradeOutPremCoins: Math.max(0, parseFloat($('tradeOutPremCoins').value) || 0),
+    tradeOutPremBars: Math.max(0, parseFloat($('tradeOutPremBars').value) || 0),
+    tradeOutPremScrap: Math.max(0, parseFloat($('tradeOutPremScrap').value) || 0),
+    tradeInDiscJunk: Math.max(0, parseFloat($('tradeInDiscJunk').value) || 0),
+    tradeOutPremJunk: Math.max(0, parseFloat($('tradeOutPremJunk').value) || 0),
     threshGold: Math.max(0, parseFloat($('threshGold').value) || 10),
     threshSilver: Math.max(0, parseFloat($('threshSilver').value) || 500),
     reorderPoints: {
@@ -6316,7 +6845,7 @@ function updateDashboard() {
     const d = new Date(tx.date);
     const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
                     d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    const typeClass = tx.type === 'buy' ? 'buy' : tx.type === 'sell' ? 'sell' : 'wholesale';
+    const typeClass = tx.type === 'buy' ? 'buy' : tx.type === 'sell' ? 'sell' : tx.type === 'trade' ? 'trade' : 'wholesale';
     const profitClass = tx.profit >= 0 ? 'profit-positive' : 'profit-negative';
 
     const lines = getTxLines(tx);
@@ -6414,7 +6943,7 @@ window.openCustomerProfile = function(customerId) {
       const d = new Date(tx.date);
       const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
                       d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      const typeClass = tx.type === 'buy' ? 'buy' : tx.type === 'sell' ? 'sell' : 'wholesale';
+      const typeClass = tx.type === 'buy' ? 'buy' : tx.type === 'sell' ? 'sell' : tx.type === 'trade' ? 'trade' : 'wholesale';
       const profitClass = tx.profit >= 0 ? 'profit-positive' : 'profit-negative';
 
       const lines = getTxLines(tx);
